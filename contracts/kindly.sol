@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.3;
 
 import './Ownable.sol';
 import './libraries/SafeMath.sol';
@@ -62,7 +62,7 @@ contract Kindly is Context, IERC20, Ownable {
 
     uint256 public _maxTxAmount = 540 * 10**6 * 10**18; // 0.005
     
-    constructor (address payable charityAddress, address payable devAddress, address payable liquidityWalletAddress) public {
+    constructor (address payable charityAddress, address payable devAddress, address payable liquidityWalletAddress) {
         _rOwned[owner()] = _rTotal;
 
         // exclude owner and this contract from fee

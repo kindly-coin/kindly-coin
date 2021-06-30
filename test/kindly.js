@@ -3,7 +3,6 @@ const { expect } = require('chai');
 const M = require('minimatch');
 const { execPath } = require('process');
 const web3 = require('web3');
-const MockContract = artifacts.require("MockContract")
 const Kindly = artifacts.require("Kindly")
 const toBN = web3.utils.toBN;
 
@@ -15,9 +14,9 @@ contract("Kindly", accounts => {
     var contract;
 
     beforeEach(async function() {
-        charityMock = await MockContract.new();
-        devMock = await MockContract.new();
-        liquidityWalletMock = await MockContract.new();
+        charityMock = accounts[7];
+        devMock = accounts[8];
+        liquidityWalletMock = accounts[9];
 
         /*pancakeFactoryMock = await MockContract.new();
         const createPairMethod = web3.utils.sha3("transfecreatePairrFrom(address,address)").slice(0,10) // first 4 bytes
@@ -30,7 +29,7 @@ contract("Kindly", accounts => {
         await pancakeRouterMock.givenMethodReturnAddress(WETHMethod, "0xD99D1c33F9fC3444f8101754aBC46c52416550D1");
         await pancakeRouterMock.givenMethodReturnAddress(factoryMethod, pancakeFactoryMock.address);*/
 
-        contract = await Kindly.new(charityMock.address, devMock.address, liquidityWalletMock.address);
+        contract = await Kindly.new(charityMock, devMock, liquidityWalletMock);
     });
 
     async function getReflectionFromToken(tokens) {
@@ -85,7 +84,7 @@ contract("Kindly", accounts => {
                 expect(e.reason.indexOf("Ownable: caller is not the owner")).to.be.greaterThanOrEqual(0);
             }
             expect(hasError).to.be.equal(true);
-            expect(await contract.dev()).to.be.equal(devMock.address);
+            expect(await contract.dev()).to.be.equal(devMock);
         });
 
         it("should not allow to change charity wallet address", async() => {
@@ -97,7 +96,7 @@ contract("Kindly", accounts => {
                 expect(e.reason.indexOf("Ownable: caller is not the owner")).to.be.greaterThanOrEqual(0);
             }
             expect(hasError).to.be.equal(true);
-            expect(await contract.charity()).to.be.equal(charityMock.address);
+            expect(await contract.charity()).to.be.equal(charityMock);
         });
 
         it("should not allow to change liquidity wallet address", async() => {
@@ -109,7 +108,7 @@ contract("Kindly", accounts => {
                 expect(e.reason.indexOf("Ownable: caller is not the owner")).to.be.greaterThanOrEqual(0);
             }
             expect(hasError).to.be.equal(true);
-            expect(await contract.liquidityWallet()).to.be.equal(liquidityWalletMock.address);
+            expect(await contract.liquidityWallet()).to.be.equal(liquidityWalletMock);
         });
 
     });
@@ -441,7 +440,7 @@ contract("Kindly", accounts => {
 
     describe("fees", async () => {
         it("should add 5% tokens to charity when transaction occurs", async () => {
-            initialCharityBalance = await contract.balanceOf(charityMock.address);
+            initialCharityBalance = await contract.balanceOf(charityMock);
 
             await contract.transfer(accounts[2], web3.utils.toWei("200"));
             await contract.transfer(accounts[3], 1000);
@@ -452,14 +451,14 @@ contract("Kindly", accounts => {
             // transfer amount from account2 to account3
             await contract.transferFrom(accounts[2], accounts[3], web3.utils.toWei("200"));
 
-            finalCharityBalance = await contract.balanceOf(charityMock.address);
+            finalCharityBalance = await contract.balanceOf(charityMock);
             
             expect(finalCharityBalance).to.be.bignumber.equal(initialCharityBalance.add(web3.utils.toWei(toBN("200")).mul(toBN("5")).div(toBN("100"))));
         });
 
         it("should add 5% tokens + reflection to charity when transaction occurs if charity included in rewards", async () => {
-            initialCharityBalance = await contract.balanceOf(charityMock.address);
-            await contract.includeInReward(charityMock.address);
+            initialCharityBalance = await contract.balanceOf(charityMock);
+            await contract.includeInReward(charityMock);
             
             await contract.transfer(accounts[2], web3.utils.toWei("200"));
             await contract.transfer(accounts[3], 1000);
@@ -473,14 +472,14 @@ contract("Kindly", accounts => {
             // transfer amount from account2 to account3
             await contract.transferFrom(accounts[2], accounts[3], web3.utils.toWei("200"));
 
-            finalCharityBalance = await contract.balanceOf(charityMock.address);
+            finalCharityBalance = await contract.balanceOf(charityMock);
             charityBalanceFromReflection = await getTokensFromReflection(rTokensToCharity);
             
             expect(finalCharityBalance).to.be.bignumber.equal(charityBalanceFromReflection);
         });
 
         it("should add 1% tokens to developers when transaction occurs", async () => {
-            initialDevBalance = await contract.balanceOf(devMock.address);
+            initialDevBalance = await contract.balanceOf(devMock);
 
             await contract.transfer(accounts[2], web3.utils.toWei("200"));
             await contract.transfer(accounts[3], 1000);
@@ -491,13 +490,13 @@ contract("Kindly", accounts => {
             // transfer amount from account2 to account3
             await contract.transferFrom(accounts[2], accounts[3], web3.utils.toWei("200"));
 
-            finalDevBalance = await contract.balanceOf(devMock.address);
+            finalDevBalance = await contract.balanceOf(devMock);
             
             expect(finalDevBalance).to.be.bignumber.equal(initialDevBalance.add(web3.utils.toWei(toBN("200")).mul(toBN("1")).div(toBN("100"))));
         });
 
         it("should add 1% tokens + reflection to dev when transaction occurs if charity included in rewards", async () => {
-            await contract.includeInReward(devMock.address);
+            await contract.includeInReward(devMock);
             await contract.transfer(accounts[2], web3.utils.toWei("200"));
             await contract.transfer(accounts[3], 1000);
 
@@ -510,14 +509,14 @@ contract("Kindly", accounts => {
             // transfer amount from account2 to account3
             await contract.transferFrom(accounts[2], accounts[3], web3.utils.toWei("200"));
 
-            finalDevBalance = await contract.balanceOf(devMock.address);
+            finalDevBalance = await contract.balanceOf(devMock);
             devBalanceFromReflection = await getTokensFromReflection(rTokensToDev);
             
             expect(finalDevBalance).to.be.bignumber.equal(devBalanceFromReflection);
         });
 
         it("should add 4% (change fee rate) tokens to charity when transaction occurs", async () => {
-            initialCharityBalance = await contract.balanceOf(charityMock.address);
+            initialCharityBalance = await contract.balanceOf(charityMock);
 
             await contract.transfer(accounts[2], web3.utils.toWei("200"));
             await contract.transfer(accounts[3], 1000);
@@ -535,7 +534,7 @@ contract("Kindly", accounts => {
             // transfer amount from account2 to account3
             await contract.transferFrom(accounts[2], accounts[3], web3.utils.toWei("100"));
 
-            finalCharityBalance = await contract.balanceOf(charityMock.address);
+            finalCharityBalance = await contract.balanceOf(charityMock);
 
             expect(finalCharityBalance).to.be.bignumber.equal(initialCharityBalance.add(web3.utils.toWei(toBN("100")).mul(toBN("4")).div(toBN("100"))));
         });
