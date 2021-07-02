@@ -36,7 +36,7 @@ contract Kindly is Context, IERC20, Ownable {
     }
 
     uint256 private constant MAX = ~uint256(0);
-    uint256 private _tTotal = 108000 * 10**6 * 10**18;
+    uint256 private _tTotal = 108 * 10**6 * 10**18;
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
 
@@ -60,7 +60,7 @@ contract Kindly is Context, IERC20, Ownable {
     uint256 public _liquidityFee = 0;
     uint256 private _previousLiquidityFee = _liquidityFee;
 
-    uint256 public _maxTxAmount = 540 * 10**6 * 10**18; // 0.005
+    uint256 public _maxTxAmount = 540 * 10**3 * 10**18; // 0.005
     
     constructor (address payable charityAddress, address payable devAddress, address payable liquidityWalletAddress) {
         _rOwned[owner()] = _rTotal;

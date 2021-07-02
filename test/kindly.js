@@ -39,14 +39,24 @@ contract("Kindly", accounts => {
         return tokens.mul(rate);
     }
 
-    async function getTokensFromReflection(rTokens) {
+    async function getTokensFromReflection(rTokens, tTokensToAdjust, rTokensToAdjust) {
         totalSupply = await contract.totalSupply();
         rSupply = await contract.totalRSupply();
+
+        if (typeof tTokensToAdjust != "undefined") {
+            totalSupply = totalSupply.sub(tTokensToAdjust);
+        }
+
+        if (typeof rTokensToAdjust != "undefined") {
+            rSupply = rSupply.sub(rTokensToAdjust);
+        }
+
         rate = rSupply.div(totalSupply);
         return rTokens.div(rate);
     }
 
     describe("setup", async() => {
+        
         it("should have Kindly as name", async() => {
             expect(await contract.name()).to.be.equal("Kindly");
         });
@@ -56,9 +66,14 @@ contract("Kindly", accounts => {
         it("should have 18 decimals", async() => {
             expect(await contract.decimals()).to.be.bignumber.equal("18");
         });
-        it("should have 108 billion of total supply", async () => {
+        it("should have 108 million of total supply", async () => {
             totalSupply = await contract.totalSupply();
-            expect(totalSupply).to.be.bignumber.equal(web3.utils.toWei("108000000000"));
+            expect(totalSupply).to.be.bignumber.equal(web3.utils.toWei("108000000"));
+        });
+        it("should have 108 million * 0.005 of max transaction amount", async () => {
+            maxTxAmount = (await contract._maxTxAmount()).toString();
+            maxTxAmountCalculatedWithTotalSupply = (await contract.totalSupply()).mul(web3.utils.toWei(toBN("5"))).div(web3.utils.toWei(toBN("1000"))).toString();
+            expect(maxTxAmount).to.be.bignumber.equal(maxTxAmountCalculatedWithTotalSupply);
         });
         it("should have 1% tax fee", async() => {
             expect(await contract._taxFee()).to.be.bignumber.equal("1");
@@ -110,9 +125,8 @@ contract("Kindly", accounts => {
             expect(hasError).to.be.equal(true);
             expect(await contract.liquidityWallet()).to.be.equal(liquidityWalletMock);
         });
-
     });
-  
+
     describe("transfers", async() => {
         it("should transfer balance to another account", async () => {
             creatorInitialAccountBalance = await contract.balanceOf(accounts[0]);        
@@ -124,32 +138,8 @@ contract("Kindly", accounts => {
             creatorFinalAccountBalance = await contract.balanceOf(accounts[0]);
     
             expect(initialAccountBalance).to.be.bignumber.equal('0');        
-            expect(finalAccountBalance).to.be.bignumber.greaterThan(initialAccountBalance);
-            expect(creatorFinalAccountBalance).to.be.bignumber.lessThan(creatorInitialAccountBalance);
-        });
-
-        it("should increment holders balance when transaction occurs", async () => {
-            // transfer amount to account1
-            await contract.transfer(accounts[1], web3.utils.toWei("100"));
-    
-            // save balance
-            holderInitialAccountBalance = await contract.balanceOf(accounts[1]);
-            
-            // transfer tokens to other accounts (account2 and account3)
-            await contract.transfer(accounts[2], web3.utils.toWei("200"));
-            await contract.transfer(accounts[3], 1000);
-            
-            // allow sender to transfer amount from account2 and account3
-            await contract.increaseAllowance(accounts[0], web3.utils.toWei("200"), {from: accounts[2]});
-        
-            // transfer amount from account2 to account3
-            await contract.transferFrom(accounts[2], accounts[3], web3.utils.toWei("200"));
-            
-            // get current balance from account1
-            holderFinalAccountBalance = await contract.balanceOf(accounts[1]);
-            
-            // transfer between account2 and account3 should add fee to account1
-            expect(holderFinalAccountBalance).to.be.bignumber.greaterThan(holderInitialAccountBalance);
+            expect(finalAccountBalance).to.be.bignumber.equal('10000');
+            expect(creatorFinalAccountBalance).to.be.bignumber.equal(creatorInitialAccountBalance.sub(toBN('10000')));
         });
 
         it("should increment holders balance when transaction occurs by the reflection amount (1% among all owners)", async () => {
@@ -166,15 +156,23 @@ contract("Kindly", accounts => {
             tokensRelatedToReflection = web3.utils.toWei(toBN("100"));
             rTokensToAccount = await getReflectionFromToken(tokensRelatedToReflection);
         
+            // calculate tokens from accounts excluded from rewards
+            let tTokensToCharity = web3.utils.toWei(toBN("100")).mul(toBN("5")).div(toBN("100"));
+            let tTokensToDev = web3.utils.toWei(toBN("100")).mul(toBN("1")).div(toBN("100"));
+            let tTokensToLiquidity = web3.utils.toWei(toBN("100")).mul(toBN("1")).div(toBN("100"));
+            let rTokensToCharity = await getReflectionFromToken(tTokensToCharity);
+            let rTokensToDev = await getReflectionFromToken(tTokensToDev);
+            let rTokensToLiquidity = await getReflectionFromToken(tTokensToLiquidity);
+            let tTokensToAdjust = tTokensToDev.add(tTokensToLiquidity).add(tTokensToCharity);
+            let rTokensToAdjust = rTokensToDev.add(rTokensToLiquidity).add(rTokensToCharity);
+
             // transfer amount from account2 to account3
             await contract.transferFrom(accounts[2], accounts[3], web3.utils.toWei("100"));
 
             holderFinalAccountBalance = await contract.balanceOf(accounts[1]);
-            balanceFromReflection = await getTokensFromReflection(rTokensToAccount);
+            balanceFromReflection = await getTokensFromReflection(rTokensToAccount, tTokensToAdjust, rTokensToAdjust);
 
-            // difference due to the exclusion of charity from rewards
-            expect(holderFinalAccountBalance).to.be.bignumber.at.least(balanceFromReflection);
-            expect(holderFinalAccountBalance).to.be.bignumber.lessThan(balanceFromReflection.add(toBN("10")));
+            expect(holderFinalAccountBalance).to.be.bignumber.equal(balanceFromReflection);
         });
 
         it("should not allow transfers with negative values", async () => {
@@ -348,7 +346,7 @@ contract("Kindly", accounts => {
             tOwnedFinalBalanceCheckAccount = await contract.balanceOf(accounts[1]);
             
             // transfer between account2 and account3 should add fee to account1
-            expect(tOwnedFinalBalanceRecipient).to.be.bignumber.equal(web3.utils.toWei("92")); // 100 - 7% (charity dev and reflection fee)
+            expect(tOwnedFinalBalanceRecipient).to.be.bignumber.equal(web3.utils.toWei("92")); // 100 - 8% (charity dev and liquidity wallet fee)
             expect(tOwnedFinalBalanceSender).to.be.bignumber.equal(tOwnedFinalBalanceCheckAccount); // Check account should have the same balance as the sender account after the transfer 
 
         });
@@ -399,17 +397,17 @@ contract("Kindly", accounts => {
             expect(tOwnedFinalBalanceRecipient).to.be.bignumber.equal(web3.utils.toWei("92")); // Check account should have the same balance as the sender account after the transfer 
 
         });
-
+        
         it("should allow max tx transfer", async () => {
             
             
-            await contract.transfer(accounts[2], web3.utils.toWei("540000000"));
+            await contract.transfer(accounts[2], web3.utils.toWei("540000"));
 
             // allow sender to transfer amount from account2 and account3
-            await contract.increaseAllowance(accounts[0], web3.utils.toWei("540000000"), {from: accounts[2]});
+            await contract.increaseAllowance(accounts[0], web3.utils.toWei("540000"), {from: accounts[2]});
         
             // transfer amount from account2 to account3
-            await contract.transfer(accounts[3], web3.utils.toWei("540000000"), {from: accounts[2]});
+            await contract.transfer(accounts[3], web3.utils.toWei("540000"), {from: accounts[2]});
 
             tOwnedFinalBalanceSender = await contract.balanceOf(accounts[2]);
             
@@ -420,15 +418,15 @@ contract("Kindly", accounts => {
 
         it("should not allow over max tx transfer", async () => {
             
-            await contract.transfer(accounts[2], web3.utils.toWei("540000001"));
+            await contract.transfer(accounts[2], web3.utils.toWei("540001"));
 
             // allow sender to transfer amount from account2 and account3
-            await contract.increaseAllowance(accounts[0], web3.utils.toWei("540000001"), {from: accounts[2]});
+            await contract.increaseAllowance(accounts[0], web3.utils.toWei("540001"), {from: accounts[2]});
         
             // transfer amount from account2 to account3
             let hasError = false;
             try{
-                await contract.transfer(accounts[3], web3.utils.toWei("540000001"), {from: accounts[2]});
+                await contract.transfer(accounts[3], web3.utils.toWei("540001"), {from: accounts[2]});
             } catch(e) {
                 hasError = true;
                 expect(e.reason.indexOf("Transfer amount exceeds the maxTxAmount.")).to.be.greaterThanOrEqual(0);
@@ -436,9 +434,11 @@ contract("Kindly", accounts => {
 
             expect(hasError).to.be.equal(true);
         });
+        
     });
 
     describe("fees", async () => {
+        
         it("should add 5% tokens to charity when transaction occurs", async () => {
             initialCharityBalance = await contract.balanceOf(charityMock);
 
@@ -466,14 +466,22 @@ contract("Kindly", accounts => {
             // allow sender to transfer amount from account2 and account3
             await contract.increaseAllowance(accounts[0], web3.utils.toWei("200"), {from: accounts[2]});
 
+            // calculate tokens from accounts excluded from rewards
+            let tTokensToDev = web3.utils.toWei(toBN("200")).mul(toBN("1")).div(toBN("100"));
+            let tTokensToLiquidity = web3.utils.toWei(toBN("200")).mul(toBN("1")).div(toBN("100"));
+            let rTokensToDev = await getReflectionFromToken(tTokensToDev);
+            let rTokensToLiquidity = await getReflectionFromToken(tTokensToLiquidity);
+            let tTokensToAdjust = tTokensToDev.add(tTokensToLiquidity);
+            let rTokensToAdjust = rTokensToDev.add(rTokensToLiquidity);
+
             tokensToCharity = web3.utils.toWei(toBN("200")).mul(toBN("5")).div(toBN("100"));
             rTokensToCharity = await getReflectionFromToken(tokensToCharity);
-        
+            
             // transfer amount from account2 to account3
             await contract.transferFrom(accounts[2], accounts[3], web3.utils.toWei("200"));
 
             finalCharityBalance = await contract.balanceOf(charityMock);
-            charityBalanceFromReflection = await getTokensFromReflection(rTokensToCharity);
+            charityBalanceFromReflection = await getTokensFromReflection(rTokensToCharity, tTokensToAdjust, rTokensToAdjust);
             
             expect(finalCharityBalance).to.be.bignumber.equal(charityBalanceFromReflection);
         });
@@ -503,6 +511,14 @@ contract("Kindly", accounts => {
             // allow sender to transfer amount from account2 and account3
             await contract.increaseAllowance(accounts[0], web3.utils.toWei("200"), {from: accounts[2]});
 
+            // calculate tokens from accounts excluded from rewards
+            let tTokensToCharity = web3.utils.toWei(toBN("200")).mul(toBN("5")).div(toBN("100"));
+            let tTokensToLiquidity = web3.utils.toWei(toBN("200")).mul(toBN("1")).div(toBN("100"));
+            let rTokensToCharity = await getReflectionFromToken(tTokensToCharity);
+            let rTokensToLiquidity = await getReflectionFromToken(tTokensToLiquidity);
+            let tTokensToAdjust = tTokensToCharity.add(tTokensToLiquidity);
+            let rTokensToAdjust = rTokensToCharity.add(rTokensToLiquidity);
+
             tokensToDev = web3.utils.toWei(toBN("200")).mul(toBN("1")).div(toBN("100"));
             rTokensToDev = await getReflectionFromToken(tokensToDev);
         
@@ -510,7 +526,7 @@ contract("Kindly", accounts => {
             await contract.transferFrom(accounts[2], accounts[3], web3.utils.toWei("200"));
 
             finalDevBalance = await contract.balanceOf(devMock);
-            devBalanceFromReflection = await getTokensFromReflection(rTokensToDev);
+            devBalanceFromReflection = await getTokensFromReflection(rTokensToDev, tTokensToAdjust, rTokensToAdjust);
             
             expect(finalDevBalance).to.be.bignumber.equal(devBalanceFromReflection);
         });
