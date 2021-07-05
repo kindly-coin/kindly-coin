@@ -75,17 +75,17 @@ contract("Kindly", accounts => {
             maxTxAmountCalculatedWithTotalSupply = (await contract.totalSupply()).mul(web3.utils.toWei(toBN("5"))).div(web3.utils.toWei(toBN("1000"))).toString();
             expect(maxTxAmount).to.be.bignumber.equal(maxTxAmountCalculatedWithTotalSupply);
         });
-        it("should have 1% tax fee", async() => {
-            expect(await contract._taxFee()).to.be.bignumber.equal("1");
+        it("should have 0.3% tax fee", async() => {
+            expect(await contract._taxFee()).to.be.bignumber.equal("30");
         });
-        it("should have 5% charity fee", async() => {
-            expect(await contract._charityFee()).to.be.bignumber.equal("5");
+        it("should have 2.65% charity fee", async() => {
+            expect(await contract._charityFee()).to.be.bignumber.equal("265");
         });
-        it("should have 1% dev fee", async() => {
-            expect(await contract._devFee()).to.be.bignumber.equal("1");
+        it("should have 0.75% dev fee", async() => {
+            expect(await contract._devFee()).to.be.bignumber.equal("75");
         });
-        it("should have 1% liquidity wallet fee", async() => {
-            expect(await contract._liquidityWalletFee()).to.be.bignumber.equal("1");
+        it("should have 0.3% liquidity wallet fee", async() => {
+            expect(await contract._liquidityWalletFee()).to.be.bignumber.equal("30");
         });   
         it("should have 0% liquidity fee", async() => {
             expect(await contract._liquidityFee()).to.be.bignumber.equal("0");
@@ -157,9 +157,9 @@ contract("Kindly", accounts => {
             rTokensToAccount = await getReflectionFromToken(tokensRelatedToReflection);
         
             // calculate tokens from accounts excluded from rewards
-            let tTokensToCharity = web3.utils.toWei(toBN("100")).mul(toBN("5")).div(toBN("100"));
-            let tTokensToDev = web3.utils.toWei(toBN("100")).mul(toBN("1")).div(toBN("100"));
-            let tTokensToLiquidity = web3.utils.toWei(toBN("100")).mul(toBN("1")).div(toBN("100"));
+            let tTokensToCharity = web3.utils.toWei(toBN("100")).mul(toBN("265")).div(toBN("10000"));
+            let tTokensToDev = web3.utils.toWei(toBN("100")).mul(toBN("75")).div(toBN("10000"));
+            let tTokensToLiquidity = web3.utils.toWei(toBN("100")).mul(toBN("30")).div(toBN("10000"));
             let rTokensToCharity = await getReflectionFromToken(tTokensToCharity);
             let rTokensToDev = await getReflectionFromToken(tTokensToDev);
             let rTokensToLiquidity = await getReflectionFromToken(tTokensToLiquidity);
@@ -346,7 +346,7 @@ contract("Kindly", accounts => {
             tOwnedFinalBalanceCheckAccount = await contract.balanceOf(accounts[1]);
             
             // transfer between account2 and account3 should add fee to account1
-            expect(tOwnedFinalBalanceRecipient).to.be.bignumber.equal(web3.utils.toWei("92")); // 100 - 8% (charity dev and liquidity wallet fee)
+            expect(tOwnedFinalBalanceRecipient).to.be.bignumber.equal(web3.utils.toWei("96")); // 100 - 4% (charity dev and liquidity wallet fee)
             expect(tOwnedFinalBalanceSender).to.be.bignumber.equal(tOwnedFinalBalanceCheckAccount); // Check account should have the same balance as the sender account after the transfer 
 
         });
@@ -356,7 +356,7 @@ contract("Kindly", accounts => {
             await contract.excludeFromReward(accounts[2]);
             //tOwnedInitialBalance = await contract.balanceOf(accounts[3]);
             await contract.transfer(accounts[2], web3.utils.toWei("200"));
-            await contract.transfer(accounts[1], web3.utils.toWei("92"));
+            await contract.transfer(accounts[1], web3.utils.toWei("96"));
 
             // allow sender to transfer amount from account2 and account3
             await contract.increaseAllowance(accounts[0], web3.utils.toWei("100"), {from: accounts[2]});
@@ -370,7 +370,7 @@ contract("Kindly", accounts => {
             rOwnedFinalBalanceCheckAccount = await contract.balanceOf(accounts[1]);
             
             // transfer between account2 and account3 should add fee to account1
-            expect(tOwnedFinalBalanceSender).to.be.bignumber.equal(web3.utils.toWei("100")); // 100 - 7% (charity dev and reflection fee)
+            expect(tOwnedFinalBalanceSender).to.be.bignumber.equal(web3.utils.toWei("100"));
             expect(rOwnedFinalBalanceRecipient).to.be.bignumber.equal(rOwnedFinalBalanceCheckAccount); // Check account should have the same balance as the sender account after the transfer 
 
         });
@@ -393,8 +393,8 @@ contract("Kindly", accounts => {
             tOwnedFinalBalanceRecipient = await contract.balanceOf(accounts[3]);
             
             // transfer between account2 and account3 should add fee to account1
-            expect(tOwnedFinalBalanceSender).to.be.bignumber.equal(web3.utils.toWei("100")); // 100 - 7% (charity dev and reflection fee)
-            expect(tOwnedFinalBalanceRecipient).to.be.bignumber.equal(web3.utils.toWei("92")); // Check account should have the same balance as the sender account after the transfer 
+            expect(tOwnedFinalBalanceSender).to.be.bignumber.equal(web3.utils.toWei("100"));
+            expect(tOwnedFinalBalanceRecipient).to.be.bignumber.equal(web3.utils.toWei("96")); // Check account should have the same balance as the sender account after the transfer 
 
         });
         
@@ -439,7 +439,7 @@ contract("Kindly", accounts => {
 
     describe("fees", async () => {
         
-        it("should add 5% tokens to charity when transaction occurs", async () => {
+        it("should add 2.65% tokens to charity when transaction occurs", async () => {
             initialCharityBalance = await contract.balanceOf(charityMock);
 
             await contract.transfer(accounts[2], web3.utils.toWei("200"));
@@ -453,10 +453,10 @@ contract("Kindly", accounts => {
 
             finalCharityBalance = await contract.balanceOf(charityMock);
             
-            expect(finalCharityBalance).to.be.bignumber.equal(initialCharityBalance.add(web3.utils.toWei(toBN("200")).mul(toBN("5")).div(toBN("100"))));
+            expect(finalCharityBalance).to.be.bignumber.equal(initialCharityBalance.add(web3.utils.toWei(toBN("200")).mul(toBN("265")).div(toBN("10000"))));
         });
 
-        it("should add 5% tokens + reflection to charity when transaction occurs if charity included in rewards", async () => {
+        it("should add 2.65% tokens + reflection to charity when transaction occurs if charity included in rewards", async () => {
             initialCharityBalance = await contract.balanceOf(charityMock);
             await contract.includeInReward(charityMock);
             
@@ -467,14 +467,14 @@ contract("Kindly", accounts => {
             await contract.increaseAllowance(accounts[0], web3.utils.toWei("200"), {from: accounts[2]});
 
             // calculate tokens from accounts excluded from rewards
-            let tTokensToDev = web3.utils.toWei(toBN("200")).mul(toBN("1")).div(toBN("100"));
-            let tTokensToLiquidity = web3.utils.toWei(toBN("200")).mul(toBN("1")).div(toBN("100"));
+            let tTokensToDev = web3.utils.toWei(toBN("200")).mul(toBN("75")).div(toBN("10000"));
+            let tTokensToLiquidity = web3.utils.toWei(toBN("200")).mul(toBN("30")).div(toBN("10000"));
             let rTokensToDev = await getReflectionFromToken(tTokensToDev);
             let rTokensToLiquidity = await getReflectionFromToken(tTokensToLiquidity);
             let tTokensToAdjust = tTokensToDev.add(tTokensToLiquidity);
             let rTokensToAdjust = rTokensToDev.add(rTokensToLiquidity);
 
-            tokensToCharity = web3.utils.toWei(toBN("200")).mul(toBN("5")).div(toBN("100"));
+            tokensToCharity = web3.utils.toWei(toBN("200")).mul(toBN("265")).div(toBN("10000"));
             rTokensToCharity = await getReflectionFromToken(tokensToCharity);
             
             // transfer amount from account2 to account3
@@ -486,7 +486,7 @@ contract("Kindly", accounts => {
             expect(finalCharityBalance).to.be.bignumber.equal(charityBalanceFromReflection);
         });
 
-        it("should add 1% tokens to developers when transaction occurs", async () => {
+        it("should add 0.75% tokens to developers when transaction occurs", async () => {
             initialDevBalance = await contract.balanceOf(devMock);
 
             await contract.transfer(accounts[2], web3.utils.toWei("200"));
@@ -500,10 +500,10 @@ contract("Kindly", accounts => {
 
             finalDevBalance = await contract.balanceOf(devMock);
             
-            expect(finalDevBalance).to.be.bignumber.equal(initialDevBalance.add(web3.utils.toWei(toBN("200")).mul(toBN("1")).div(toBN("100"))));
+            expect(finalDevBalance).to.be.bignumber.equal(initialDevBalance.add(web3.utils.toWei(toBN("200")).mul(toBN("75")).div(toBN("10000"))));
         });
 
-        it("should add 1% tokens + reflection to dev when transaction occurs if charity included in rewards", async () => {
+        it("should add 0.75% tokens + reflection to dev when transaction occurs if charity included in rewards", async () => {
             await contract.includeInReward(devMock);
             await contract.transfer(accounts[2], web3.utils.toWei("200"));
             await contract.transfer(accounts[3], 1000);
@@ -512,14 +512,14 @@ contract("Kindly", accounts => {
             await contract.increaseAllowance(accounts[0], web3.utils.toWei("200"), {from: accounts[2]});
 
             // calculate tokens from accounts excluded from rewards
-            let tTokensToCharity = web3.utils.toWei(toBN("200")).mul(toBN("5")).div(toBN("100"));
-            let tTokensToLiquidity = web3.utils.toWei(toBN("200")).mul(toBN("1")).div(toBN("100"));
+            let tTokensToCharity = web3.utils.toWei(toBN("200")).mul(toBN("265")).div(toBN("10000"));
+            let tTokensToLiquidity = web3.utils.toWei(toBN("200")).mul(toBN("30")).div(toBN("10000"));
             let rTokensToCharity = await getReflectionFromToken(tTokensToCharity);
             let rTokensToLiquidity = await getReflectionFromToken(tTokensToLiquidity);
             let tTokensToAdjust = tTokensToCharity.add(tTokensToLiquidity);
             let rTokensToAdjust = rTokensToCharity.add(rTokensToLiquidity);
 
-            tokensToDev = web3.utils.toWei(toBN("200")).mul(toBN("1")).div(toBN("100"));
+            tokensToDev = web3.utils.toWei(toBN("200")).mul(toBN("75")).div(toBN("10000"));
             rTokensToDev = await getReflectionFromToken(tokensToDev);
         
             // transfer amount from account2 to account3
@@ -531,7 +531,7 @@ contract("Kindly", accounts => {
             expect(finalDevBalance).to.be.bignumber.equal(devBalanceFromReflection);
         });
 
-        it("should add 4% (change fee rate) tokens to charity when transaction occurs", async () => {
+        it("should add 0.3% (change fee rate) tokens to charity when transaction occurs", async () => {
             initialCharityBalance = await contract.balanceOf(charityMock);
 
             await contract.transfer(accounts[2], web3.utils.toWei("200"));
@@ -541,10 +541,10 @@ contract("Kindly", accounts => {
             await contract.increaseAllowance(accounts[0], web3.utils.toWei("200"), {from: accounts[2]});
 
             // set the fee perc from 1% to 15%
-            await contract.setCharityFeePercent(4);
+            await contract.setCharityFeePercent(100);
 
             // calculate reflection to dev
-            tokensToCharity = web3.utils.toWei(toBN("100")).mul(toBN("4")).div(toBN("100"));
+            tokensToCharity = web3.utils.toWei(toBN("100")).mul(toBN("100")).div(toBN("10000"));
             rTokensToCharity = await getReflectionFromToken(tokensToCharity);
         
             // transfer amount from account2 to account3
@@ -552,10 +552,10 @@ contract("Kindly", accounts => {
 
             finalCharityBalance = await contract.balanceOf(charityMock);
 
-            expect(finalCharityBalance).to.be.bignumber.equal(initialCharityBalance.add(web3.utils.toWei(toBN("100")).mul(toBN("4")).div(toBN("100"))));
+            expect(finalCharityBalance).to.be.bignumber.equal(initialCharityBalance.add(web3.utils.toWei(toBN("100")).mul(toBN("100")).div(toBN("10000"))));
         });
 
-        it("should allow setting less than 1% tax fee", async () => {
+        it("should allow setting less than 0.3% tax fee", async () => {
             var hasError = false;
             try {
                 await contract.setTaxFeePercent(0);
@@ -567,7 +567,7 @@ contract("Kindly", accounts => {
             expect(hasError).to.be.equal(false);
         });
 
-        it("should allow setting less than 1% dev fee", async () => {
+        it("should allow setting less than 0.75% dev fee", async () => {
             var hasError = false;
             try {
                 await contract.setDevFeePercent(0);
@@ -579,7 +579,7 @@ contract("Kindly", accounts => {
             expect(hasError).to.be.equal(false);
         });
 
-        it("should allow setting less than 1% liquidity wallet fee", async () => {
+        it("should allow setting less than 0.3% liquidity wallet fee", async () => {
             var hasError = false;
             try {
                 await contract.setLiquidityWalletFeePercent(0);
@@ -591,10 +591,10 @@ contract("Kindly", accounts => {
             expect(hasError).to.be.equal(false);
         });
 
-        it("should allow setting less than 5% charity fee", async () => {
+        it("should allow setting less than 2.65% charity fee", async () => {
             var hasError = false;
             try {
-                await contract.setCharityFeePercent(4);
+                await contract.setCharityFeePercent(40);
             } catch(e) {
                 hasError = true;
                 expect(e.reason.indexOf("Cannot set percentage over")).to.be.greaterThanOrEqual(0);
@@ -603,10 +603,10 @@ contract("Kindly", accounts => {
             expect(hasError).to.be.equal(false);
         });
 
-        it("should allow setting 1% tax fee", async () => {
+        it("should allow setting 0.3% tax fee", async () => {
             var hasError = false;
             try {
-                await contract.setTaxFeePercent(1);
+                await contract.setTaxFeePercent(30);
             } catch(e) {
                 hasError = true;
                 expect(e.reason.indexOf("Cannot set percentage over")).to.be.greaterThanOrEqual(0);
@@ -615,10 +615,10 @@ contract("Kindly", accounts => {
             expect(hasError).to.be.equal(false);
         });
 
-        it("should allow setting 1% dev fee", async () => {
+        it("should allow setting 7.5% dev fee", async () => {
             var hasError = false;
             try {
-                await contract.setDevFeePercent(1);
+                await contract.setDevFeePercent(75);
             } catch(e) {
                 hasError = true;
                 expect(e.reason.indexOf("Cannot set percentage over")).to.be.greaterThanOrEqual(0);
@@ -627,10 +627,10 @@ contract("Kindly", accounts => {
             expect(hasError).to.be.equal(false);
         });
 
-        it("should allow setting 1% liquidity wallet fee", async () => {
+        it("should allow setting 0.3% liquidity wallet fee", async () => {
             var hasError = false;
             try {
-                await contract.setLiquidityWalletFeePercent(1);
+                await contract.setLiquidityWalletFeePercent(30);
             } catch(e) {
                 hasError = true;
                 expect(e.reason.indexOf("Cannot set percentage over")).to.be.greaterThanOrEqual(0);
@@ -639,10 +639,10 @@ contract("Kindly", accounts => {
             expect(hasError).to.be.equal(false);
         });
 
-        it("should allow setting 5% charity fee", async () => {
+        it("should allow setting 2.65% charity fee", async () => {
             var hasError = false;
             try {
-                await contract.setCharityFeePercent(5);
+                await contract.setCharityFeePercent(265);
             } catch(e) {
                 hasError = true;
                 expect(e.reason.indexOf("Cannot set percentage over")).to.be.greaterThanOrEqual(0);
@@ -651,10 +651,10 @@ contract("Kindly", accounts => {
             expect(hasError).to.be.equal(false);
         });
 
-        it("should not allow setting more than 1% tax fee", async () => {
+        it("should not allow setting more than 0.3% tax fee", async () => {
             var hasError = false;
             try {
-                await contract.setTaxFeePercent(2);
+                await contract.setTaxFeePercent(31);
             } catch(e) {
                 hasError = true;
                 expect(e.reason.indexOf("Cannot set percentage over")).to.be.greaterThanOrEqual(0);
@@ -663,10 +663,10 @@ contract("Kindly", accounts => {
             expect(hasError).to.be.equal(true);
         });
 
-        it("should not allow setting more than 1% dev fee", async () => {
+        it("should not allow setting more than 0.75% dev fee", async () => {
             var hasError = false;
             try {
-                await contract.setDevFeePercent(2);
+                await contract.setDevFeePercent(76);
             } catch(e) {
                 hasError = true;
                 expect(e.reason.indexOf("Cannot set percentage over")).to.be.greaterThanOrEqual(0);
@@ -675,10 +675,10 @@ contract("Kindly", accounts => {
             expect(hasError).to.be.equal(true);
         });
 
-        it("should not allow setting more than 1% liquidity wallet fee", async () => {
+        it("should not allow setting more than 0.3% liquidity wallet fee", async () => {
             var hasError = false;
             try {
-                await contract.setLiquidityWalletFeePercent(2);
+                await contract.setLiquidityWalletFeePercent(31);
             } catch(e) {
                 hasError = true;
                 expect(e.reason.indexOf("Cannot set percentage over")).to.be.greaterThanOrEqual(0);
@@ -687,10 +687,10 @@ contract("Kindly", accounts => {
             expect(hasError).to.be.equal(true);
         });
 
-        it("should not allow setting more than 5% charity fee", async () => {
+        it("should not allow setting more than 2.65% charity fee", async () => {
             var hasError = false;
             try {
-                await contract.setCharityFeePercent(15);
+                await contract.setCharityFeePercent(266);
             } catch(e) {
                 hasError = true;
                 expect(e.reason.indexOf("Cannot set percentage over")).to.be.greaterThanOrEqual(0);
@@ -702,7 +702,7 @@ contract("Kindly", accounts => {
         it("should not allow setting negative charity fee", async () => {
             var hasError = false;
             try{
-                await contract.setCharityFeePercent(-1);
+                await contract.setCharityFeePercent(-10);
             } catch(e) {
                 hasError = true;
                 expect(e.reason.indexOf("value out-of-bounds")).to.be.greaterThanOrEqual(0);

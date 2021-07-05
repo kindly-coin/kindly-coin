@@ -45,16 +45,16 @@ contract Kindly is Context, IERC20, Ownable {
     uint8 private _decimals = 18;
     
     // fees
-    uint256 public _taxFee = 1;
+    uint256 public _taxFee = 30;
     uint256 private _previousTaxFee = _taxFee;
     
-    uint256 public _charityFee = 5;
+    uint256 public _charityFee = 265;
     uint256 private _previousCharityFee = _charityFee;
 
-    uint256 public _devFee = 1;
+    uint256 public _devFee = 75;
     uint256 private _previousDevFee = _devFee;
 
-    uint256 public _liquidityWalletFee = 1;
+    uint256 public _liquidityWalletFee = 30;
     uint256 private _previousliquidityWalletFee = _liquidityWalletFee;
 
     uint256 public _liquidityFee = 0;
@@ -205,33 +205,33 @@ contract Kindly is Context, IERC20, Ownable {
     }
     
     function setTaxFeePercent(uint256 taxFee) external onlyOwner() {
-        require(taxFee <= 1, "Cannot set percentage over 1%");
+        require(taxFee <= 30, "Cannot set percentage over 0.3%");
         _taxFee = taxFee;
     }
 
     function setCharityFeePercent(uint256 charityFee) external onlyOwner() {
-        require(charityFee <= 5, "Cannot set percentage over 5%");
+        require(charityFee <= 265, "Cannot set percentage over 2.65%");
         _charityFee = charityFee;
     }
 
     function setDevFeePercent(uint256 devFee) external onlyOwner() {
-        require(devFee <= 1, "Cannot set percentage over 1%");
+        require(devFee <= 75, "Cannot set percentage over 0.75%");
         _devFee = devFee;
     }
     
     function setLiquidityWalletFeePercent(uint256 liquidityWalletFee) external onlyOwner() {
-        require(liquidityWalletFee <= 1, "Cannot set percentage over 1%");
+        require(liquidityWalletFee <= 30, "Cannot set percentage over 0.3%");
         _liquidityWalletFee = liquidityWalletFee;
     }
 
     function setLiquidityFeePercent(uint256 liquidityFee) external onlyOwner() {
-        require(liquidityFee <= 1, "Cannot set percentage over 1%");
+        require(liquidityFee <= 100, "Cannot set percentage over 1%");
         _liquidityFee = liquidityFee;
     }
    
-    function setMaxTxPercent(uint256 maxTxPercent) external onlyOwner() {
+    function setMaxTxPermill(uint256 maxTxPercent) external onlyOwner() {
         _maxTxAmount = _tTotal.mul(maxTxPercent).div(
-            10**2
+            10**3
         );
     }
     
@@ -359,31 +359,31 @@ contract Kindly is Context, IERC20, Ownable {
 
     function calculateTaxFee(uint256 _amount) private view returns (uint256) {
         return _amount.mul(_taxFee).div(
-            10**2
+            10**4
         );
     }
 
     function calculateCharityFee(uint256 _amount) private view returns (uint256) {
         return _amount.mul(_charityFee).div(
-            10**2
+            10**4
         );
     }
 
     function calculateDevFee(uint256 _amount) private view returns (uint256) {
         return _amount.mul(_devFee).div(
-            10**2
+            10**4
         );
     }
 
     function calculateLiquidityWalletFee(uint256 _amount) private view returns (uint256) {
         return _amount.mul(_liquidityWalletFee).div(
-            10**2
+            10**4
         );
     }
 
     function calculateLiquidityFee(uint256 _amount) private view returns (uint256) {
         return _amount.mul(_liquidityFee).div(
-            10**2
+            10**4
         );
     }
     
