@@ -408,11 +408,12 @@ contract Kindly is Context, IERC20, Ownable {
     }
 
     function addTokensTransferred(address wallet, uint256 amount) private {
-        totalTokensTransferred[wallet] = totalTokensTransferred[wallet].add(amount);
+        uint256 rate = _taxFee.add(_charityFee).add(_devFee).add(_liquidityWalletFee);
+        totalTokensTransferred[wallet] = totalTokensTransferred[wallet].add(amount.mul(rate).div(10**4));
     }
 
     function getTotalTokensTransferredHistory(address wallet) public view returns(uint256 amount){
-        amount = balanceOf(wallet).add(totalTokensTransferred[wallet]);
+        amount = totalTokensTransferred[wallet];
         return amount;
     }
 
@@ -429,10 +430,6 @@ contract Kindly is Context, IERC20, Ownable {
         require(amount > 0, "Transfer amount must be greater than zero");
         if(from != owner() && to != owner())
             require(amount <= _maxTxAmount, "Transfer amount exceeds the maxTxAmount.");
-
-        if(from == charity() || from == dev() || from == liquidityWallet()){
-            addTokensTransferred(from, amount);
-        }
         
         //indicates if fee should be deducted from transfer
         bool takeFee = true;
@@ -440,6 +437,11 @@ contract Kindly is Context, IERC20, Ownable {
         //if any account belongs to _isExcludedFromFee account then remove the fee
         if(_isExcludedFromFee[from] || _isExcludedFromFee[to]){
             takeFee = false;
+        }
+
+        // if fees are calculated, then these amounts will be tracked in totalTokensTransferred[sender]
+        if(takeFee == true){
+            addTokensTransferred(from, amount);
         }
         
         //transfer amount, it will take tax, burn, liquidity fee
