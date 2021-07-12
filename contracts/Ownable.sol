@@ -100,6 +100,9 @@ contract Ownable is Context {
 
     function excludeFromReward(address account) public virtual onlyOwner() {
     }
+
+    function excludeFromFee(address account) public virtual onlyOwner() {
+    }
     
     function setCharityAddress(address payable charityAddress) public virtual onlyOwner
     {
@@ -107,6 +110,7 @@ contract Ownable is Context {
         emit CharityAddressChanged(_charityWalletAddress, charityAddress);
         _charityWalletAddress = charityAddress;
         excludeFromReward(charityAddress);
+        excludeFromFee(charityAddress);
     }
 
     function setDevAddress(address payable devAddress) public virtual onlyOwner
@@ -115,6 +119,7 @@ contract Ownable is Context {
         emit DevAddressChanged(_devWalletAddress, devAddress);
         _devWalletAddress = devAddress;
         excludeFromReward(devAddress);
+        excludeFromFee(devAddress);
     }
 
     function setLiquidityWalletAddress(address payable liquidityWalletAddress) public virtual onlyOwner
@@ -123,6 +128,7 @@ contract Ownable is Context {
         emit LiquidityWalletAddressChanged(_liquidityWalletAddress, liquidityWalletAddress);
         _liquidityWalletAddress = liquidityWalletAddress;
         excludeFromReward(liquidityWalletAddress);
+        excludeFromFee(liquidityWalletAddress);
     }
     
     function setLockedLiquidityAddress(address liquidityAddress) public virtual onlyOwner

@@ -87,9 +87,9 @@ contract("Kindly", accounts => {
         it("should have 0.3% liquidity wallet fee", async() => {
             expect(await contract._liquidityWalletFee()).to.be.bignumber.equal("30");
         });   
-        it("should have 0% liquidity fee", async() => {
+/*         it("should have 0% liquidity fee", async() => {
             expect(await contract._liquidityFee()).to.be.bignumber.equal("0");
-        });
+        }); */
         it("should not allow to change dev wallet address", async() => {
             hasError = false;
             try {
@@ -128,6 +128,7 @@ contract("Kindly", accounts => {
     });
 
     describe("transfers", async() => {
+        
         it("should transfer balance to another account", async () => {
             creatorInitialAccountBalance = await contract.balanceOf(accounts[0]);        
             initialAccountBalance = await contract.balanceOf(accounts[1]);
@@ -453,7 +454,26 @@ contract("Kindly", accounts => {
 
             finalCharityBalance = await contract.balanceOf(charityMock);
             
+            //charity address should receive 2.65%
             expect(finalCharityBalance).to.be.bignumber.equal(initialCharityBalance.add(web3.utils.toWei(toBN("200")).mul(toBN("265")).div(toBN("10000"))));
+            
+            /*
+             * Track transfers from Charity 
+             * If transfer from chartiy to another address, then it should be tracked in totalTokensTransferred
+             * The method getTotalTokensTransferred should return the addition of the tokens in the address and the totalTokensTransferred
+             */
+
+            // allow sender to transfer amount from charity and account4
+            await contract.increaseAllowance(accounts[0], web3.utils.toWei("1"), {from: charityMock});
+            // transfer from charity balance 1 to another account            
+            await contract.transferFrom(charityMock, accounts[4], web3.utils.toWei("1"));
+            
+            // should add totalTokensTransferred by 1
+            expect(await contract.totalTokensTransferred(charityMock)).to.be.bignumber.equal(web3.utils.toWei("1"));
+
+            // balance before charity transfer should be the same as the return of getTotalTokensTransferred
+            expect(finalCharityBalance).to.be.bignumber.equal(await contract.getTotalTokensTransferredHistory(charityMock));
+
         });
 
         it("should add 2.65% tokens + reflection to charity when transaction occurs if charity included in rewards", async () => {
@@ -501,6 +521,57 @@ contract("Kindly", accounts => {
             finalDevBalance = await contract.balanceOf(devMock);
             
             expect(finalDevBalance).to.be.bignumber.equal(initialDevBalance.add(web3.utils.toWei(toBN("200")).mul(toBN("75")).div(toBN("10000"))));
+
+            /*
+             * Track transfers from Dev 
+             * If transfer from dev to another address, then it should be tracked in totalTokensTransferred
+             * The method getTotalTokensTransferred should return the addition of the tokens in the address and the totalTokensTransferred
+             */
+
+            // allow sender to transfer amount from dev and account4
+            await contract.increaseAllowance(accounts[0], web3.utils.toWei("1"), {from: devMock});
+            // transfer from dev balance 1 to another account            
+            await contract.transferFrom(devMock, accounts[4], web3.utils.toWei("1"));
+            
+            // should add totalTokensTransferred by 1
+            expect(await contract.totalTokensTransferred(devMock)).to.be.bignumber.equal(web3.utils.toWei("1"));
+
+            // balance before dev transfer should be the same as the return of getTotalTokensTransferred
+            expect(finalDevBalance).to.be.bignumber.equal(await contract.getTotalTokensTransferredHistory(devMock));  
+        });
+
+        it("should add 0.3% tokens to liquidity wallet when transaction occurs", async () => {
+            initialLiquidityWalletBalance = await contract.balanceOf(liquidityWalletMock);
+
+            await contract.transfer(accounts[2], web3.utils.toWei("2000"));
+            await contract.transfer(accounts[3], 1000);
+
+            // allow sender to transfer amount from account2 and account3
+            await contract.increaseAllowance(accounts[0], web3.utils.toWei("2000"), {from: accounts[2]});
+        
+            // transfer amount from account2 to account3
+            await contract.transferFrom(accounts[2], accounts[3], web3.utils.toWei("2000"));
+
+            finalLiquidityWalletBalance = await contract.balanceOf(liquidityWalletMock);
+            
+            expect(finalLiquidityWalletBalance).to.be.bignumber.equal(initialLiquidityWalletBalance.add(web3.utils.toWei(toBN("2000")).mul(toBN("30")).div(toBN("10000"))));
+
+            /*
+             * Track transfers from Liquidity Wallet 
+             * If transfer from Liquidity Wallet to another address, then it should be tracked in totalTokensTransferred
+             * The method getTotalTokensTransferred should return the addition of the tokens in the address and the totalTokensTransferred
+             */
+
+            // allow sender to transfer amount from Liquidity Wallet and account4
+            await contract.increaseAllowance(accounts[0], web3.utils.toWei("1"), {from: liquidityWalletMock});
+            // transfer from Liquidity Wallet balance 1 to another account            
+            await contract.transferFrom(liquidityWalletMock, accounts[4], web3.utils.toWei("1"));
+            
+            // should add totalTokensTransferred by 1
+            expect(await contract.totalTokensTransferred(liquidityWalletMock)).to.be.bignumber.equal(web3.utils.toWei("1"));
+
+            // balance before Liquidity Wallet transfer should be the same as the return of getTotalTokensTransferred
+            expect(finalLiquidityWalletBalance).to.be.bignumber.equal(await contract.getTotalTokensTransferredHistory(liquidityWalletMock));  
         });
 
         it("should add 0.75% tokens + reflection to dev when transaction occurs if charity included in rewards", async () => {
@@ -531,7 +602,7 @@ contract("Kindly", accounts => {
             expect(finalDevBalance).to.be.bignumber.equal(devBalanceFromReflection);
         });
 
-        it("should add 0.3% (change fee rate) tokens to charity when transaction occurs", async () => {
+        it("should add 1% (change fee rate) tokens to charity when transaction occurs", async () => {
             initialCharityBalance = await contract.balanceOf(charityMock);
 
             await contract.transfer(accounts[2], web3.utils.toWei("200"));

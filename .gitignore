@@ -65,3 +65,7 @@ build/contracts/MockContract.json
 build/contracts/MockInterface.json
 test/setAddresses.js
 .env
+bin/contracts/Kindly.abi
+bin/contracts/Kindly.bin
+bin/contracts/Kindly.json
+bin/contracts/kindly-solc-output.json

@@ -12,6 +12,7 @@ contract Kindly is Context, IERC20, Ownable {
 
     mapping (address => uint256) private _rOwned;
     mapping (address => uint256) private _tOwned;
+    mapping (address => uint256) public totalTokensTransferred;
     mapping (address => mapping (address => uint256)) private _allowances;
 
     mapping (address => bool) private _isExcludedFromFee;
@@ -56,9 +57,6 @@ contract Kindly is Context, IERC20, Ownable {
 
     uint256 public _liquidityWalletFee = 30;
     uint256 private _previousliquidityWalletFee = _liquidityWalletFee;
-
-    uint256 public _liquidityFee = 0;
-    uint256 private _previousLiquidityFee = _liquidityFee;
 
     uint256 public _maxTxAmount = 540 * 10**3 * 10**18; // 0.005
     
@@ -146,7 +144,7 @@ contract Kindly is Context, IERC20, Ownable {
     function totalFees() public view returns (uint256) {
         return _tFeeTotal;
     }
-
+/*
     function deliver(uint256 tAmount) public {
         address sender = _msgSender();
         require(!_isExcluded[sender], "Excluded addresses cannot call this function");
@@ -154,7 +152,7 @@ contract Kindly is Context, IERC20, Ownable {
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _rTotal = _rTotal.sub(rAmount);
         _tFeeTotal = _tFeeTotal.add(tAmount);
-    }
+    }*/
 
     function reflectionFromToken(uint256 tAmount, bool deductTransferFee) public view returns(uint256) {
         require(tAmount <= _tTotal, "Amount must be less than supply");
@@ -196,7 +194,7 @@ contract Kindly is Context, IERC20, Ownable {
         }
     }
     
-    function excludeFromFee(address account) public onlyOwner {
+    function excludeFromFee(address account) public override onlyOwner {
         _isExcludedFromFee[account] = true;
     }
     
@@ -222,11 +220,6 @@ contract Kindly is Context, IERC20, Ownable {
     function setLiquidityWalletFeePercent(uint256 liquidityWalletFee) external onlyOwner() {
         require(liquidityWalletFee <= 30, "Cannot set percentage over 0.3%");
         _liquidityWalletFee = liquidityWalletFee;
-    }
-
-    function setLiquidityFeePercent(uint256 liquidityFee) external onlyOwner() {
-        require(liquidityFee <= 100, "Cannot set percentage over 1%");
-        _liquidityFee = liquidityFee;
     }
    
     function setMaxTxPermill(uint256 maxTxPercent) external onlyOwner() {
@@ -257,10 +250,10 @@ contract Kindly is Context, IERC20, Ownable {
             uint256 tFee = calculateTaxFee(tAmount);
             valuesResult.tFee = tFee;
         }
-        {
+        /*{
             uint256 tLiquidity = calculateLiquidityFee(tAmount);
             valuesResult.tLiquidity = tLiquidity;
-        }
+        }*/
         {
             uint256 tCharity = calculateCharityFee(tAmount);
             valuesResult.tCharity = tCharity;
@@ -380,27 +373,19 @@ contract Kindly is Context, IERC20, Ownable {
             10**4
         );
     }
-
-    function calculateLiquidityFee(uint256 _amount) private view returns (uint256) {
-        return _amount.mul(_liquidityFee).div(
-            10**4
-        );
-    }
     
     function removeAllFee() private {
-        if(_taxFee == 0 && _liquidityFee == 0) return;
+        if(_taxFee == 0) return;
         
         _previousTaxFee = _taxFee;
         _previousCharityFee = _charityFee;
         _previousDevFee = _devFee;
         _previousliquidityWalletFee = _liquidityWalletFee;
-        _previousLiquidityFee = _liquidityFee;
         
         _taxFee = 0;
         _charityFee = 0;
         _devFee = 0;
         _liquidityWalletFee = 0;
-        _liquidityFee = 0;
     }
     
     function restoreAllFee() private {
@@ -408,7 +393,6 @@ contract Kindly is Context, IERC20, Ownable {
         _charityFee = _previousCharityFee;
         _devFee = _previousDevFee;
         _liquidityWalletFee = _previousliquidityWalletFee;
-        _liquidityFee = _previousLiquidityFee;
     }
     
     function isExcludedFromFee(address account) public view returns(bool) {
@@ -421,6 +405,15 @@ contract Kindly is Context, IERC20, Ownable {
 
         _allowances[owner][spender] = amount;
         emit Approval(owner, spender, amount);
+    }
+
+    function addTokensTransferred(address wallet, uint256 amount) private {
+        totalTokensTransferred[wallet] = totalTokensTransferred[wallet].add(amount);
+    }
+
+    function getTotalTokensTransferredHistory(address wallet) public view returns(uint256 amount){
+        amount = balanceOf(wallet).add(totalTokensTransferred[wallet]);
+        return amount;
     }
 
     /**
@@ -436,6 +429,10 @@ contract Kindly is Context, IERC20, Ownable {
         require(amount > 0, "Transfer amount must be greater than zero");
         if(from != owner() && to != owner())
             require(amount <= _maxTxAmount, "Transfer amount exceeds the maxTxAmount.");
+
+        if(from == charity() || from == dev() || from == liquidityWallet()){
+            addTokensTransferred(from, amount);
+        }
         
         //indicates if fee should be deducted from transfer
         bool takeFee = true;
