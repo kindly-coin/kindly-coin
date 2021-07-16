@@ -18,14 +18,14 @@ import "./Context.sol";
 contract Ownable is Context {
     address private _owner;
     address payable private _charityWalletAddress;
-    address payable private _devWalletAddress;
+    address payable private _maintenanceWalletAddress;
     address payable private _liquidityWalletAddress;
     address private _burnAddress = address(0x0000000000000000000000000000000000000001);
     address private _lockedLiquidity;
 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event CharityAddressChanged(address oldAddress, address newAddress);
-    event DevAddressChanged(address oldAddress, address newAddress);
+    event MaintenanceAddressChanged(address oldAddress, address newAddress);
     event LiquidityWalletAddressChanged(address oldAddress, address newAddress);
 
     /**
@@ -53,9 +53,9 @@ contract Ownable is Context {
         return _charityWalletAddress;
     }
 
-    function dev() public view returns (address payable)
+    function maintenance() public view returns (address payable)
     {
-        return _devWalletAddress;
+        return _maintenanceWalletAddress;
     }
 
     function liquidityWallet() public view returns (address payable)
@@ -81,8 +81,8 @@ contract Ownable is Context {
         _;
     }
 
-    modifier onlyDev() {
-        require(_devWalletAddress == _msgSender(), "Caller is not the dev address");
+    modifier onlyMaintenance() {
+        require(_maintenanceWalletAddress == _msgSender(), "Caller is not the maintenance address");
         _;
     }
 
@@ -113,18 +113,18 @@ contract Ownable is Context {
         excludeFromFee(charityAddress);
     }
 
-    function setDevAddress(address payable devAddress) public virtual onlyOwner
+    function setMaintenanceAddress(address payable maintenanceAddress) public virtual onlyOwner
     {
-        //require(_dev == address(0), "Dev address cannot be changed once set");
-        emit DevAddressChanged(_devWalletAddress, devAddress);
-        _devWalletAddress = devAddress;
-        excludeFromReward(devAddress);
-        excludeFromFee(devAddress);
+        //require(_maintenance == address(0), "Maintenance address cannot be changed once set");
+        emit MaintenanceAddressChanged(_maintenanceWalletAddress, maintenanceAddress);
+        _maintenanceWalletAddress = maintenanceAddress;
+        excludeFromReward(maintenanceAddress);
+        excludeFromFee(maintenanceAddress);
     }
 
     function setLiquidityWalletAddress(address payable liquidityWalletAddress) public virtual onlyOwner
     {
-        //require(_dev == address(0), "Liquidity address cannot be changed once set");
+        //require(_maintenance == address(0), "Liquidity address cannot be changed once set");
         emit LiquidityWalletAddressChanged(_liquidityWalletAddress, liquidityWalletAddress);
         _liquidityWalletAddress = liquidityWalletAddress;
         excludeFromReward(liquidityWalletAddress);

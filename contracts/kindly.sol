@@ -25,14 +25,14 @@ contract Kindly is Context, IERC20, Ownable {
         uint256 tFee;
         uint256 tLiquidity;
         uint256 tCharity;
-        uint256 tDev;
+        uint256 tMaintenance;
         uint256 tLiquidityWallet;
         uint256 rAmount;
         uint256 rTransferAmount;
         uint256 rFee;
         uint256 rLiquidity;
         uint256 rCharity;
-        uint256 rDev;
+        uint256 rMaintenance;
         uint256 rLiquidityWallet;
     }
 
@@ -49,18 +49,18 @@ contract Kindly is Context, IERC20, Ownable {
     uint256 public _taxFee = 30;
     uint256 private _previousTaxFee = _taxFee;
     
-    uint256 public _charityFee = 265;
+    uint256 public _charityFee = 250;
     uint256 private _previousCharityFee = _charityFee;
 
-    uint256 public _devFee = 75;
-    uint256 private _previousDevFee = _devFee;
+    uint256 public _maintenanceFee = 90;
+    uint256 private _previousMaintenanceFee = _maintenanceFee;
 
     uint256 public _liquidityWalletFee = 30;
     uint256 private _previousliquidityWalletFee = _liquidityWalletFee;
 
     uint256 public _maxTxAmount = 540 * 10**3 * 10**18; // 0.005
     
-    constructor (address payable charityAddress, address payable devAddress, address payable liquidityWalletAddress) {
+    constructor (address payable charityAddress, address payable maintenanceAddress, address payable liquidityWalletAddress) {
         _rOwned[owner()] = _rTotal;
 
         // exclude owner and this contract from fee
@@ -68,7 +68,7 @@ contract Kindly is Context, IERC20, Ownable {
         _isExcludedFromFee[address(this)] = true;
 
         setCharityAddress(charityAddress);
-        setDevAddress(devAddress);
+        setMaintenanceAddress(maintenanceAddress);
         setLiquidityWalletAddress(liquidityWalletAddress);
         
         emit Transfer(address(0), owner(), _tTotal);
@@ -208,13 +208,13 @@ contract Kindly is Context, IERC20, Ownable {
     }
 
     function setCharityFeePercent(uint256 charityFee) external onlyOwner() {
-        require(charityFee <= 265, "Cannot set percentage over 2.65%");
+        require(charityFee <= 250, "Cannot set percentage over 2.50%");
         _charityFee = charityFee;
     }
 
-    function setDevFeePercent(uint256 devFee) external onlyOwner() {
-        require(devFee <= 75, "Cannot set percentage over 0.75%");
-        _devFee = devFee;
+    function setMaintenanceFeePercent(uint256 maintenanceFee) external onlyOwner() {
+        require(maintenanceFee <= 90, "Cannot set percentage over 0.90%");
+        _maintenanceFee = maintenanceFee;
     }
     
     function setLiquidityWalletFeePercent(uint256 liquidityWalletFee) external onlyOwner() {
@@ -242,7 +242,7 @@ contract Kindly is Context, IERC20, Ownable {
         _getTValues(tAmount, valuesResult);
         _getRValues(tAmount, valuesResult, _getRate());
 
-        return (valuesResult.rAmount, valuesResult.rTransferAmount, valuesResult.rFee, valuesResult.tTransferAmount, valuesResult.tFee, valuesResult.tLiquidity, valuesResult.tCharity, valuesResult.tDev, valuesResult.tLiquidityWallet);
+        return (valuesResult.rAmount, valuesResult.rTransferAmount, valuesResult.rFee, valuesResult.tTransferAmount, valuesResult.tFee, valuesResult.tLiquidity, valuesResult.tCharity, valuesResult.tMaintenance, valuesResult.tLiquidityWallet);
     }
 
     function _getTValues(uint256 tAmount, ValuesResult memory valuesResult) private view returns (ValuesResult memory) {
@@ -259,15 +259,15 @@ contract Kindly is Context, IERC20, Ownable {
             valuesResult.tCharity = tCharity;
         }
         {
-            uint256 tDev = calculateDevFee(tAmount);
-            valuesResult.tDev = tDev;
+            uint256 tMaintenance = calculateMaintenanceFee(tAmount);
+            valuesResult.tMaintenance = tMaintenance;
         }
         {
             uint256 tLiquidityWallet = calculateLiquidityWalletFee(tAmount);
             valuesResult.tLiquidityWallet = tLiquidityWallet;
         }
 
-        valuesResult.tTransferAmount = tAmount.sub(valuesResult.tFee).sub(valuesResult.tLiquidity).sub(valuesResult.tCharity).sub(valuesResult.tDev).sub(valuesResult.tLiquidityWallet);
+        valuesResult.tTransferAmount = tAmount.sub(valuesResult.tFee).sub(valuesResult.tLiquidity).sub(valuesResult.tCharity).sub(valuesResult.tMaintenance).sub(valuesResult.tLiquidityWallet);
         return valuesResult;
     }
 
@@ -289,15 +289,15 @@ contract Kindly is Context, IERC20, Ownable {
             valuesResult.rCharity = rCharity;
         }
         {
-            uint256 rDev = valuesResult.tDev.mul(currentRate);
-            valuesResult.rDev = rDev;
+            uint256 rMaintenance = valuesResult.tMaintenance.mul(currentRate);
+            valuesResult.rMaintenance = rMaintenance;
         }
         {
             uint256 rLiquidityWallet = valuesResult.tLiquidityWallet.mul(currentRate);
             valuesResult.rLiquidityWallet = rLiquidityWallet;
         }
 
-        valuesResult.rTransferAmount = valuesResult.rAmount.sub(valuesResult.rFee).sub(valuesResult.rLiquidity).sub(valuesResult.rCharity).sub(valuesResult.rDev).sub(valuesResult.rLiquidityWallet);
+        valuesResult.rTransferAmount = valuesResult.rAmount.sub(valuesResult.rFee).sub(valuesResult.rLiquidity).sub(valuesResult.rCharity).sub(valuesResult.rMaintenance).sub(valuesResult.rLiquidityWallet);
         return (valuesResult);
     }
 
@@ -334,12 +334,12 @@ contract Kindly is Context, IERC20, Ownable {
             _tOwned[charity()] = _tOwned[charity()].add(tCharity);
     }
 
-    function _takeDev(uint256 tDev) private {
+    function _takeMaintenance(uint256 tMaintenance) private {
         uint256 currentRate =  _getRate();
-        uint256 rDev = tDev.mul(currentRate);
-        _rOwned[dev()] = _rOwned[dev()].add(rDev);
-        if(_isExcluded[dev()])
-            _tOwned[dev()] = _tOwned[dev()].add(tDev);
+        uint256 rMaintenance = tMaintenance.mul(currentRate);
+        _rOwned[maintenance()] = _rOwned[maintenance()].add(rMaintenance);
+        if(_isExcluded[maintenance()])
+            _tOwned[maintenance()] = _tOwned[maintenance()].add(tMaintenance);
     }
     
     function _takeLiquidityWallet(uint256 tLiquidityWallet) private {
@@ -362,8 +362,8 @@ contract Kindly is Context, IERC20, Ownable {
         );
     }
 
-    function calculateDevFee(uint256 _amount) private view returns (uint256) {
-        return _amount.mul(_devFee).div(
+    function calculateMaintenanceFee(uint256 _amount) private view returns (uint256) {
+        return _amount.mul(_maintenanceFee).div(
             10**4
         );
     }
@@ -379,19 +379,19 @@ contract Kindly is Context, IERC20, Ownable {
         
         _previousTaxFee = _taxFee;
         _previousCharityFee = _charityFee;
-        _previousDevFee = _devFee;
+        _previousMaintenanceFee = _maintenanceFee;
         _previousliquidityWalletFee = _liquidityWalletFee;
         
         _taxFee = 0;
         _charityFee = 0;
-        _devFee = 0;
+        _maintenanceFee = 0;
         _liquidityWalletFee = 0;
     }
     
     function restoreAllFee() private {
         _taxFee = _previousTaxFee;
         _charityFee = _previousCharityFee;
-        _devFee = _previousDevFee;
+        _maintenanceFee = _previousMaintenanceFee;
         _liquidityWalletFee = _previousliquidityWalletFee;
     }
     
@@ -408,7 +408,7 @@ contract Kindly is Context, IERC20, Ownable {
     }
 
     function addTokensTransferred(address wallet, uint256 amount) private {
-        uint256 rate = _taxFee.add(_charityFee).add(_devFee).add(_liquidityWalletFee);
+        uint256 rate = _taxFee.add(_charityFee).add(_maintenanceFee).add(_liquidityWalletFee);
         totalTokensTransferred[wallet] = totalTokensTransferred[wallet].add(amount.mul(rate).div(10**4));
     }
 
@@ -470,52 +470,52 @@ contract Kindly is Context, IERC20, Ownable {
     }
 
     function _transferStandard(address sender, address recipient, uint256 tAmount) private {
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity, uint256 tCharity, uint256 tDev, uint256 tLiquidityWallet) = _getValues(tAmount);
+        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity, uint256 tCharity, uint256 tMaintenance, uint256 tLiquidityWallet) = _getValues(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
         _takeLiquidity(tLiquidity);
         _takeCharity(tCharity);
-        _takeDev(tDev);
+        _takeMaintenance(tMaintenance);
         _takeLiquidityWallet(tLiquidityWallet);
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
     function _transferToExcluded(address sender, address recipient, uint256 tAmount) private {
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity, uint256 tCharity, uint256 tDev, uint256 tLiquidityWallet) = _getValues(tAmount);
+        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity, uint256 tCharity, uint256 tMaintenance, uint256 tLiquidityWallet) = _getValues(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _tOwned[recipient] = _tOwned[recipient].add(tTransferAmount);
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);           
         _takeLiquidity(tLiquidity);
         _takeCharity(tCharity);
-        _takeDev(tDev);
+        _takeMaintenance(tMaintenance);
         _takeLiquidityWallet(tLiquidityWallet);
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
     function _transferFromExcluded(address sender, address recipient, uint256 tAmount) private {
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity, uint256 tCharity, uint256 tDev, uint256 tLiquidityWallet) = _getValues(tAmount);
+        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity, uint256 tCharity, uint256 tMaintenance, uint256 tLiquidityWallet) = _getValues(tAmount);
         _tOwned[sender] = _tOwned[sender].sub(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);   
         _takeLiquidity(tLiquidity);
         _takeCharity(tCharity);
-        _takeDev(tDev);
+        _takeMaintenance(tMaintenance);
         _takeLiquidityWallet(tLiquidityWallet);
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
     function _transferBothExcluded(address sender, address recipient, uint256 tAmount) private {
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity, uint256 tCharity, uint256 tDev, uint256 tLiquidityWallet) = _getValues(tAmount);
+        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity, uint256 tCharity, uint256 tMaintenance, uint256 tLiquidityWallet) = _getValues(tAmount);
         _tOwned[sender] = _tOwned[sender].sub(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _tOwned[recipient] = _tOwned[recipient].add(tTransferAmount);
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);        
         _takeLiquidity(tLiquidity);
         _takeCharity(tCharity);
-        _takeDev(tDev);
+        _takeMaintenance(tMaintenance);
         _takeLiquidityWallet(tLiquidityWallet);
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
