@@ -9,7 +9,7 @@ The Kindly Coin is intended to be the world's first social-impact cryptocurrency
 * 2.5% goes to Charity
 * 0.9% goes to Maintenance (Team, OMG Certification)
 * 0.3% goes to Liquidity Pools
-* 0.3 is redistributed among holders
+* 0.3% is redistributed among holders
 
 ## Important Links
 
