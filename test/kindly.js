@@ -1,8 +1,12 @@
 const { BN } = require('@openzeppelin/test-helpers');
 const { expect } = require('chai');
+const truffleAssert = require('truffle-assertions');
+const { functions } = require('lodash');
 const M = require('minimatch');
 const { execPath } = require('process');
 const web3 = require('web3');
+const { time } = require('openzeppelin-test-helpers');    
+
 const Kindly = artifacts.require("Kindly")
 const toBN = web3.utils.toBN;
 
@@ -39,6 +43,12 @@ contract("Kindly", accounts => {
         return tokens.mul(rate);
     }
 
+    async function timeIncreaseTo (seconds) {
+        const delay = 1000 - new Date().getMilliseconds();
+        await new Promise(resolve => setTimeout(resolve, delay));
+        await time.increaseTo(seconds);
+    }
+
     async function getTokensFromReflection(rTokens, tTokensToAdjust, rTokensToAdjust) {
         totalSupply = await contract.totalSupply();
         rSupply = await contract.totalRSupply();
@@ -54,6 +64,7 @@ contract("Kindly", accounts => {
         rate = rSupply.div(totalSupply);
         return rTokens.div(rate);
     }
+
 
     describe("setup", async() => {
         
@@ -122,6 +133,97 @@ contract("Kindly", accounts => {
             expect(hasError).to.be.equal(true);
             expect(await contract.liquidityWallet()).to.be.equal(liquidityWalletMock);
         });
+    });
+
+    describe("timelock", async() => {
+
+        it("it should not allow to increase timelock by 1 year when timelocked", async() => {
+            await truffleAssert.reverts(contract.increaseTimeLockBy(web3.utils.toBN("31556926")), "Function is timelocked"); // 1 year
+        });
+
+        it("it should allow to increase timelock by 1 year after the timelock", async() => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+            await contract.increaseTimeLockBy(web3.utils.toBN("31556926")); // increase 1 year after time lock
+            newTimeLock = await contract.timelock();
+            expect(toBN(web3.utils.toBN("31556926").add(await time.latest()))).to.be.bignumber.gte(toBN(newTimeLock));
+            expect(toBN(web3.utils.toBN("31556926").add(await time.latest()).sub(toBN("10")))).to.be.bignumber.lte(toBN(newTimeLock));
+        });
+
+        it("it should not allow to change address to exclude from fee while locked", async() => {
+            await truffleAssert.reverts(contract.excludeFromFee(accounts[1]), "Function is timelocked");
+        });
+
+        it("it should allow to change address to exclude from fee while unlocked", async() => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+            await contract.excludeFromFee(accounts[1]); // exclude account 1 from fees
+            isAccountExcludedFromFee = await contract.isExcludedFromFee(accounts[1]);
+            expect(isAccountExcludedFromFee).to.be.equal(true);
+        });
+
+        it("it should not allow to change address to exclude from rewards while locked", async() => {
+            await truffleAssert.reverts(contract.excludeFromReward(accounts[1]), "Function is timelocked");
+        });
+
+        it("it should allow to change address to exclude from rewards while unlocked", async() => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+            await contract.excludeFromReward(accounts[1]); // exclude account 1 from fees
+            isExcludedFromReward = await contract.isExcludedFromReward(accounts[1]);
+            expect(isExcludedFromReward).to.be.equal(true);
+        });
+
+        it("it should not allow to change charity, maintenance and liquidity fee addresses while locked", async() => {
+            await truffleAssert.reverts(contract.setCharityAddress(accounts[1]), "Function is timelocked");
+            await truffleAssert.reverts(contract.setMaintenanceAddress(accounts[2]), "Function is timelocked");
+            await truffleAssert.reverts(contract.setLiquidityWalletAddress(accounts[3]), "Function is timelocked");
+        });
+
+        it("it should allow to change charity, maintenance and liquidity fee addresses while locked", async() => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
+            await contract.setCharityAddress(accounts[1]);
+            await contract.setMaintenanceAddress(accounts[2]);
+            await contract.setLiquidityWalletAddress(accounts[3]);
+
+            expect(await contract.charity()).to.be.equal(accounts[1]);
+            expect(await contract.maintenance()).to.be.equal(accounts[2]);
+            expect(await contract.liquidityWallet()).to.be.equal(accounts[3]);
+        });
+
+        it("it should not allow to change maxTxAmount, charity, maintenance and liquidity fee fees while locked", async() => {
+            await truffleAssert.reverts(contract.setTaxFeePercent(20), "Function is timelocked");
+            await truffleAssert.reverts(contract.setCharityFeePercent(200), "Function is timelocked");
+            await truffleAssert.reverts(contract.setMaintenanceFeePercent(50), "Function is timelocked");
+            await truffleAssert.reverts(contract.setLiquidityWalletFeePercent(15) , "Function is timelocked");
+            await truffleAssert.reverts(contract.setMaxTxPermill(500) , "Function is timelocked");
+        });
+
+        it("it should allow to change maxTxAmount, charity, maintenance and liquidity fee fees while locked", async() => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
+            await contract.setTaxFeePercent(20);
+            await contract.setCharityFeePercent(200);
+            await contract.setMaintenanceFeePercent(50);
+            await contract.setLiquidityWalletFeePercent(15);
+            await contract.setMaxTxPermill(500);
+
+            tFee = await contract._taxFee()
+            cFee = await contract._charityFee()
+            mFee = await contract._maintenanceFee()
+            lFee = await contract._liquidityWalletFee()
+            maxA = await contract._maxTxAmount()
+
+            expect(tFee).to.be.bignumber.equal(toBN("20"));
+            expect(cFee).to.be.bignumber.equal(toBN("200"));
+            expect(mFee).to.be.bignumber.equal(toBN("50"));
+            expect(lFee).to.be.bignumber.equal(toBN("15"));
+            expect(maxA).to.be.bignumber.equal(web3.utils.toWei("54000000"));
+        });  
+
     });
 
     describe("transfers", async() => {
@@ -278,6 +380,8 @@ contract("Kindly", accounts => {
         });
 
         it("should not increment holders balance when transaction occurs if excluded from fee and should not increment the totalTokensTransferred", async () => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
             // transfer amount to account1
             await contract.transfer(accounts[1], web3.utils.toWei("100"));
     
@@ -328,7 +432,9 @@ contract("Kindly", accounts => {
         });
 
         it("should increase tOwned on transfer to excluded", async () => {
-            
+
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
             // transfer tokens to other accounts (account2 and account3)
             await contract.excludeFromReward(accounts[3]);
             //tOwnedInitialBalance = await contract.balanceOf(accounts[3]);
@@ -353,7 +459,9 @@ contract("Kindly", accounts => {
         });
 
         it("should decrease tOwned on transfer from excluded", async () => {
-            
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
             await contract.excludeFromReward(accounts[2]);
             //tOwnedInitialBalance = await contract.balanceOf(accounts[3]);
             await contract.transfer(accounts[2], web3.utils.toWei("200"));
@@ -377,7 +485,9 @@ contract("Kindly", accounts => {
         });
 
         it("should decrease tOwned on both sender and recipient on both excluded", async () => {
-            
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
             await contract.excludeFromReward(accounts[2]);
             await contract.excludeFromReward(accounts[3]);
             
@@ -439,8 +549,7 @@ contract("Kindly", accounts => {
     });
     
 
-    describe("fees", async () => {
-        
+    describe("fees", async () => {   
         it("should add 2.50% tokens to charity when transaction occurs and track that tokens deducted have been accounted in totalTokensTransfer", async () => {
             initialCharityBalance = await contract.balanceOf(charityMock);
 
@@ -562,6 +671,9 @@ contract("Kindly", accounts => {
         });
 
         it("should add 1% (change fee rate) tokens to charity when transaction occurs", async () => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
             initialCharityBalance = await contract.balanceOf(charityMock);
 
             await contract.transfer(accounts[2], web3.utils.toWei("200"));
@@ -586,6 +698,9 @@ contract("Kindly", accounts => {
         });
 
         it("should allow setting less than 0.3% tax fee", async () => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
             var hasError = false;
             try {
                 await contract.setTaxFeePercent(0);
@@ -598,6 +713,9 @@ contract("Kindly", accounts => {
         });
 
         it("should allow setting less than 0.90% maintenance fee", async () => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
             var hasError = false;
             try {
                 await contract.setMaintenanceFeePercent(0);
@@ -610,6 +728,9 @@ contract("Kindly", accounts => {
         });
 
         it("should allow setting less than 0.3% liquidity wallet fee", async () => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
             var hasError = false;
             try {
                 await contract.setLiquidityWalletFeePercent(0);
@@ -622,6 +743,9 @@ contract("Kindly", accounts => {
         });
 
         it("should allow setting less than 2.50% charity fee", async () => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
             var hasError = false;
             try {
                 await contract.setCharityFeePercent(40);
@@ -634,6 +758,9 @@ contract("Kindly", accounts => {
         });
 
         it("should allow setting 0.3% tax fee", async () => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
             var hasError = false;
             try {
                 await contract.setTaxFeePercent(30);
@@ -646,6 +773,9 @@ contract("Kindly", accounts => {
         });
 
         it("should allow setting 0.90% maintenance fee", async () => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
             var hasError = false;
             try {
                 await contract.setMaintenanceFeePercent(90);
@@ -658,6 +788,9 @@ contract("Kindly", accounts => {
         });
 
         it("should allow setting 0.3% liquidity wallet fee", async () => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
             var hasError = false;
             try {
                 await contract.setLiquidityWalletFeePercent(30);
@@ -670,6 +803,9 @@ contract("Kindly", accounts => {
         });
 
         it("should allow setting 2.50% charity fee", async () => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
             var hasError = false;
             try {
                 await contract.setCharityFeePercent(250);
@@ -682,6 +818,9 @@ contract("Kindly", accounts => {
         });
 
         it("should not allow setting more than 0.3% tax fee", async () => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
             var hasError = false;
             try {
                 await contract.setTaxFeePercent(31);
@@ -694,6 +833,9 @@ contract("Kindly", accounts => {
         });
 
         it("should not allow setting more than 0.90% maintenance fee", async () => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
             var hasError = false;
             try {
                 await contract.setMaintenanceFeePercent(91);
@@ -706,6 +848,9 @@ contract("Kindly", accounts => {
         });
 
         it("should not allow setting more than 0.3% liquidity wallet fee", async () => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
             var hasError = false;
             try {
                 await contract.setLiquidityWalletFeePercent(31);
@@ -718,6 +863,9 @@ contract("Kindly", accounts => {
         });
 
         it("should not allow setting more than 2.50% charity fee", async () => {
+            previousTimeLock = await contract.timelock();
+            await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+            
             var hasError = false;
             try {
                 await contract.setCharityFeePercent(251);
@@ -754,3 +902,4 @@ contract("Kindly", accounts => {
         });
     });
 });
+

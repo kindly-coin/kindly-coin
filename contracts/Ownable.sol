@@ -2,6 +2,7 @@
 pragma solidity ^0.8.3;
 
 import "./Context.sol";
+import './libraries/SafeMath.sol';
 
 /**
  * @dev Contract module which provides a basic access control mechanism, where
@@ -16,17 +17,21 @@ import "./Context.sol";
  * the owner.
  */
 contract Ownable is Context {
+    using SafeMath for uint256;
     address private _owner;
     address payable private _charityWalletAddress;
     address payable private _maintenanceWalletAddress;
     address payable private _liquidityWalletAddress;
-    address private _burnAddress = address(0x0000000000000000000000000000000000000001);
-    address private _lockedLiquidity;
 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event CharityAddressChanged(address oldAddress, address newAddress);
     event MaintenanceAddressChanged(address oldAddress, address newAddress);
     event LiquidityWalletAddressChanged(address oldAddress, address newAddress);
+    event TimeLockChanged(uint256 previousValue, uint256 newValue);
+
+    // set timelock
+    enum Functions { excludeFromFee }
+    uint256 public timelock = 0;
 
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
@@ -37,15 +42,27 @@ contract Ownable is Context {
         emit OwnershipTransferred(address(0), msgSender);
     }
 
+    modifier onlyUnlocked() {
+        require(timelock <= block.timestamp, "Function is timelocked");
+        _;
+    }
+
+    //lock timelock
+    function increaseTimeLockBy(uint256 _time) public onlyOwner onlyUnlocked {
+        uint256 _previousValue = timelock;
+        timelock = block.timestamp.add(_time);
+        emit TimeLockChanged(_previousValue ,timelock);
+    }
+
     /**
      * @dev Returns the address of the current owner.
      */
+    function lockDue() public view returns (uint256) {
+        return timelock;
+    }
+
     function owner() public view returns (address) {
         return _owner;
-    }
-    
-    function lockedLiquidity() public view returns (address) {
-        return _lockedLiquidity;
     }
     
     function charity() public view returns (address payable)
@@ -61,11 +78,6 @@ contract Ownable is Context {
     function liquidityWallet() public view returns (address payable)
     {
         return _liquidityWalletAddress;
-    }
-    
-    function burn() public view returns (address)
-    {
-        return _burnAddress;
     }
     
     /**
@@ -98,13 +110,13 @@ contract Ownable is Context {
         _owner = address(0);
     }
 
-    function excludeFromReward(address account) public virtual onlyOwner() {
+    function excludeFromReward(address account) public virtual onlyOwner() onlyUnlocked() {
     }
 
-    function excludeFromFee(address account) public virtual onlyOwner() {
+    function excludeFromFee(address account) public virtual onlyOwner() onlyUnlocked(){
     }
     
-    function setCharityAddress(address payable charityAddress) public virtual onlyOwner
+    function setCharityAddress(address payable charityAddress) public virtual onlyOwner onlyUnlocked()
     {
         //require(_charity == address(0), "Charity address cannot be changed once set");
         emit CharityAddressChanged(_charityWalletAddress, charityAddress);
@@ -113,7 +125,7 @@ contract Ownable is Context {
         excludeFromFee(charityAddress);
     }
 
-    function setMaintenanceAddress(address payable maintenanceAddress) public virtual onlyOwner
+    function setMaintenanceAddress(address payable maintenanceAddress) public virtual onlyOwner onlyUnlocked()
     {
         //require(_maintenance == address(0), "Maintenance address cannot be changed once set");
         emit MaintenanceAddressChanged(_maintenanceWalletAddress, maintenanceAddress);
@@ -122,19 +134,13 @@ contract Ownable is Context {
         excludeFromFee(maintenanceAddress);
     }
 
-    function setLiquidityWalletAddress(address payable liquidityWalletAddress) public virtual onlyOwner
+    function setLiquidityWalletAddress(address payable liquidityWalletAddress) public virtual onlyOwner onlyUnlocked()
     {
         //require(_maintenance == address(0), "Liquidity address cannot be changed once set");
         emit LiquidityWalletAddressChanged(_liquidityWalletAddress, liquidityWalletAddress);
         _liquidityWalletAddress = liquidityWalletAddress;
         excludeFromReward(liquidityWalletAddress);
         excludeFromFee(liquidityWalletAddress);
-    }
-    
-    function setLockedLiquidityAddress(address liquidityAddress) public virtual onlyOwner
-    {
-        require(_lockedLiquidity == address(0), "Locked liquidity address cannot be changed once set");
-        _lockedLiquidity = liquidityAddress;
     }
 
 }

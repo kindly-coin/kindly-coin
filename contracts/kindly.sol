@@ -37,13 +37,13 @@ contract Kindly is Context, IERC20, Ownable {
     }
 
     uint256 private constant MAX = ~uint256(0);
-    uint256 private _tTotal = 108 * 10**6 * 10**18;
+    uint256 private constant _tTotal = 108 * 10**6 * 10**18;
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
 
-    string private _name = "Kindly";
-    string private _symbol = "KINDLY";
-    uint8 private _decimals = 18;
+    string private constant _name = "Kindly";
+    string private constant _symbol = "KINDLY";
+    uint8 private constant _decimals = 18;
     
     // fees
     uint256 public _taxFee = 30;
@@ -59,7 +59,15 @@ contract Kindly is Context, IERC20, Ownable {
     uint256 private _previousliquidityWalletFee = _liquidityWalletFee;
 
     uint256 public _maxTxAmount = 540 * 10**3 * 10**18; // 0.005
-    
+    uint256 private constant _TIMELOCK = 31556926; // 1 year
+
+    event TaxFeePercentChanged(uint256 oldValue, uint256 newValue);
+    event CharityFeePercentChanged(uint256 oldValue, uint256 newValue);
+    event MaintenanceFeePercentChanged(uint256 oldValue, uint256 newValue);
+    event LiquidityWalletFeePercentChanged(uint256 oldValue, uint256 newValue);
+    event MaxTxPermillChanged(uint256 oldValue, uint256 newValue);
+
+
     constructor (address payable charityAddress, address payable maintenanceAddress, address payable liquidityWalletAddress) {
         _rOwned[owner()] = _rTotal;
 
@@ -70,91 +78,84 @@ contract Kindly is Context, IERC20, Ownable {
         setCharityAddress(charityAddress);
         setMaintenanceAddress(maintenanceAddress);
         setLiquidityWalletAddress(liquidityWalletAddress);
+
+        increaseTimeLockBy(_TIMELOCK);
         
         emit Transfer(address(0), owner(), _tTotal);
     }
 
-    function name() public view returns (string memory) {
+    function name() external pure returns (string memory) {
         return _name;
     }
 
-    function symbol() public view returns (string memory) {
+    function symbol() external pure returns (string memory) {
         return _symbol;
     }
 
-    function decimals() public view returns (uint8) {
+    function decimals() external pure returns (uint8) {
         return _decimals;
     }
 
-    function totalSupply() public view override returns (uint256) {
+    function totalSupply() external pure override returns (uint256) {
         return _tTotal;
     }
 
-    function totalRSupply() public view onlyOwner() returns (uint256) {
+    function totalRSupply() external view onlyOwner() returns (uint256) {
         return _rTotal;
     }
 
-    function balanceOf(address account) public view override returns (uint256) {
+    function balanceOf(address account) external view override returns (uint256) {
         if (_isExcluded[account]) return _tOwned[account];
         return tokenFromReflection(_rOwned[account]);
     }
 
-    function balanceOfT(address account) public view onlyOwner() returns (uint256) {
+    function balanceOfT(address account) external view onlyOwner() returns (uint256) {
         return _tOwned[account];
     }
 
-    function balanceOfR(address account) public view onlyOwner() returns (uint256) {
+    function balanceOfR(address account) external view onlyOwner() returns (uint256) {
         return _rOwned[account];
     }
 
-    function transfer(address recipient, uint256 amount) public override returns (bool) {
+    function transfer(address recipient, uint256 amount) external override returns (bool) {
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
 
-    function allowance(address owner, address spender) public view override returns (uint256) {
+    function allowance(address owner, address spender) external view override returns (uint256) {
         return _allowances[owner][spender];
     }
 
-    function approve(address spender, uint256 amount) public override returns (bool) {
+    function approve(address spender, uint256 amount) external override returns (bool) {
         _approve(_msgSender(), spender, amount);
         return true;
     }
 
-    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
+    function transferFrom(address sender, address recipient, uint256 amount) external override returns (bool) {
         _transfer(sender, recipient, amount);
         _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
         return true;
     }
 
-    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+    function increaseAllowance(address spender, uint256 addedValue) external virtual returns (bool) {
         _approve(_msgSender(), spender, _allowances[_msgSender()][spender].add(addedValue));
         return true;
     }
 
-    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
+    function decreaseAllowance(address spender, uint256 subtractedValue) external virtual returns (bool) {
         _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
         return true;
     }
 
-    function isExcludedFromReward(address account) public view returns (bool) {
+    function isExcludedFromReward(address account) external view returns (bool) {
         return _isExcluded[account];
     }
 
-    function totalFees() public view returns (uint256) {
+    function totalFees() external view returns (uint256) {
         return _tFeeTotal;
     }
-/*
-    function deliver(uint256 tAmount) public {
-        address sender = _msgSender();
-        require(!_isExcluded[sender], "Excluded addresses cannot call this function");
-        (uint256 rAmount,,,,,,,,) = _getValues(tAmount);
-        _rOwned[sender] = _rOwned[sender].sub(rAmount);
-        _rTotal = _rTotal.sub(rAmount);
-        _tFeeTotal = _tFeeTotal.add(tAmount);
-    }*/
 
-    function reflectionFromToken(uint256 tAmount, bool deductTransferFee) public view returns(uint256) {
+    function reflectionFromToken(uint256 tAmount, bool deductTransferFee) external view returns(uint256) {
         require(tAmount <= _tTotal, "Amount must be less than supply");
         if (!deductTransferFee) {
             (uint256 rAmount,,,,,,,,) = _getValues(tAmount);
@@ -171,7 +172,7 @@ contract Kindly is Context, IERC20, Ownable {
         return rAmount.div(currentRate);
     }
 
-    function excludeFromReward(address account) public override onlyOwner() {
+    function excludeFromReward(address account) public override onlyOwner() onlyUnlocked(){
         // require(account != 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D, 'We can not exclude Uniswap router.');
         require(!_isExcluded[account], "Account is already excluded");
         if(_rOwned[account] > 0) {
@@ -194,42 +195,44 @@ contract Kindly is Context, IERC20, Ownable {
         }
     }
     
-    function excludeFromFee(address account) public override onlyOwner {
+    function excludeFromFee(address account) public override onlyOwner onlyUnlocked(){
         _isExcludedFromFee[account] = true;
     }
     
-    function includeInFee(address account) public onlyOwner {
+    function includeInFee(address account) external onlyOwner {
         _isExcludedFromFee[account] = false;
     }
-    
-    function setTaxFeePercent(uint256 taxFee) external onlyOwner() {
+
+    function setTaxFeePercent(uint256 taxFee) external onlyOwner() onlyUnlocked(){
         require(taxFee <= 30, "Cannot set percentage over 0.3%");
+        emit TaxFeePercentChanged(_taxFee, taxFee);
         _taxFee = taxFee;
     }
 
-    function setCharityFeePercent(uint256 charityFee) external onlyOwner() {
+    function setCharityFeePercent(uint256 charityFee) external onlyOwner() onlyUnlocked(){
         require(charityFee <= 250, "Cannot set percentage over 2.50%");
+        emit CharityFeePercentChanged(_charityFee, charityFee);
         _charityFee = charityFee;
     }
 
-    function setMaintenanceFeePercent(uint256 maintenanceFee) external onlyOwner() {
+    function setMaintenanceFeePercent(uint256 maintenanceFee) external onlyOwner() onlyUnlocked(){
         require(maintenanceFee <= 90, "Cannot set percentage over 0.90%");
+        emit MaintenanceFeePercentChanged(_maintenanceFee, maintenanceFee);
         _maintenanceFee = maintenanceFee;
     }
     
-    function setLiquidityWalletFeePercent(uint256 liquidityWalletFee) external onlyOwner() {
+    function setLiquidityWalletFeePercent(uint256 liquidityWalletFee) external onlyOwner() onlyUnlocked(){
         require(liquidityWalletFee <= 30, "Cannot set percentage over 0.3%");
+        emit LiquidityWalletFeePercentChanged(_liquidityWalletFee, liquidityWalletFee);
         _liquidityWalletFee = liquidityWalletFee;
     }
    
-    function setMaxTxPermill(uint256 maxTxPercent) external onlyOwner() {
-        _maxTxAmount = _tTotal.mul(maxTxPercent).div(
+    function setMaxTxPermill(uint256 maxTxPermill) external onlyOwner() onlyUnlocked(){
+        emit LiquidityWalletFeePercentChanged(_maxTxAmount, _tTotal.mul(maxTxPermill).div(10**3));
+        _maxTxAmount = _tTotal.mul(maxTxPermill).div(
             10**3
         );
     }
-    
-    // to recieve ETH from uniswapV2Router when swaping
-    receive() external payable {}
 
     function _reflectFee(uint256 rFee, uint256 tFee) private {
         _rTotal = _rTotal.sub(rFee);
@@ -250,10 +253,6 @@ contract Kindly is Context, IERC20, Ownable {
             uint256 tFee = calculateTaxFee(tAmount);
             valuesResult.tFee = tFee;
         }
-        /*{
-            uint256 tLiquidity = calculateLiquidityFee(tAmount);
-            valuesResult.tLiquidity = tLiquidity;
-        }*/
         {
             uint256 tCharity = calculateCharityFee(tAmount);
             valuesResult.tCharity = tCharity;
@@ -267,7 +266,7 @@ contract Kindly is Context, IERC20, Ownable {
             valuesResult.tLiquidityWallet = tLiquidityWallet;
         }
 
-        valuesResult.tTransferAmount = tAmount.sub(valuesResult.tFee).sub(valuesResult.tLiquidity).sub(valuesResult.tCharity).sub(valuesResult.tMaintenance).sub(valuesResult.tLiquidityWallet);
+        valuesResult.tTransferAmount = tAmount.sub(valuesResult.tFee).sub(valuesResult.tCharity).sub(valuesResult.tMaintenance).sub(valuesResult.tLiquidityWallet);
         return valuesResult;
     }
 
@@ -279,10 +278,6 @@ contract Kindly is Context, IERC20, Ownable {
         {
             uint256 rFee = valuesResult.tFee.mul(currentRate);
             valuesResult.rFee = rFee;
-        }
-        {
-            uint256 rLiquidity = valuesResult.tLiquidity.mul(currentRate);
-            valuesResult.rLiquidity = rLiquidity;
         }
         {
             uint256 rCharity = valuesResult.tCharity.mul(currentRate);
@@ -297,7 +292,7 @@ contract Kindly is Context, IERC20, Ownable {
             valuesResult.rLiquidityWallet = rLiquidityWallet;
         }
 
-        valuesResult.rTransferAmount = valuesResult.rAmount.sub(valuesResult.rFee).sub(valuesResult.rLiquidity).sub(valuesResult.rCharity).sub(valuesResult.rMaintenance).sub(valuesResult.rLiquidityWallet);
+        valuesResult.rTransferAmount = valuesResult.rAmount.sub(valuesResult.rFee).sub(valuesResult.rCharity).sub(valuesResult.rMaintenance).sub(valuesResult.rLiquidityWallet);
         return (valuesResult);
     }
 
@@ -395,7 +390,7 @@ contract Kindly is Context, IERC20, Ownable {
         _liquidityWalletFee = _previousliquidityWalletFee;
     }
     
-    function isExcludedFromFee(address account) public view returns(bool) {
+    function isExcludedFromFee(address account) external view returns(bool) {
         return _isExcludedFromFee[account];
     }
 
@@ -412,7 +407,7 @@ contract Kindly is Context, IERC20, Ownable {
         totalTokensTransferred[wallet] = totalTokensTransferred[wallet].add(amount.mul(rate).div(10**4));
     }
 
-    function getTotalTokensTransferredHistory(address wallet) public view returns(uint256 amount){
+    function getTotalTokensTransferredHistory(address wallet) external view returns(uint256 amount){
         amount = totalTokensTransferred[wallet];
         return amount;
     }
@@ -440,7 +435,7 @@ contract Kindly is Context, IERC20, Ownable {
         }
 
         // if fees are calculated, then these amounts will be tracked in totalTokensTransferred[sender]
-        if(takeFee == true){
+        if(takeFee){
             addTokensTransferred(from, amount);
         }
         
@@ -457,8 +452,6 @@ contract Kindly is Context, IERC20, Ownable {
             _transferFromExcluded(sender, recipient, amount);
         } else if (!_isExcluded[sender] && _isExcluded[recipient]) {
             _transferToExcluded(sender, recipient, amount);
-        } else if (!_isExcluded[sender] && !_isExcluded[recipient]) {
-            _transferStandard(sender, recipient, amount);
         } else if (_isExcluded[sender] && _isExcluded[recipient]) {
             _transferBothExcluded(sender, recipient, amount);
         } else {
