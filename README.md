@@ -1,6 +1,6 @@
 # README #
 
-Kindly Coin is a charity token running in the ETH and BSC chain. 
+Kindly Coin is a social impact token running in the ETH and BSC chain. 
 
 ## Purpose & Functionalities of the Kindly Coin, Exchange and Wallet
 
