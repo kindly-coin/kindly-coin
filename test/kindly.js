@@ -5,9 +5,9 @@ const { functions } = require('lodash');
 const M = require('minimatch');
 const { execPath } = require('process');
 const web3 = require('web3');
-const { time } = require('openzeppelin-test-helpers');    
+const { time } = require('@openzeppelin/test-helpers'); //require('openzeppelin-test-helpers');    
 
-const Kindly = artifacts.require("Kindly")
+const Kindly = artifacts.require("Kindly");
 const toBN = web3.utils.toBN;
 
 contract("Kindly", accounts => {
@@ -49,6 +49,10 @@ contract("Kindly", accounts => {
         await time.increaseTo(seconds);
     }
 
+    async function timeIncreaseToBlock (block) {
+        await time.advanceBlock(block);
+    }
+
     async function getTokensFromReflection(rTokens, tTokensToAdjust, rTokensToAdjust) {
         totalSupply = await contract.totalSupply();
         rSupply = await contract.totalRSupply();
@@ -64,7 +68,6 @@ contract("Kindly", accounts => {
         rate = rSupply.div(totalSupply);
         return rTokens.div(rate);
     }
-
 
     describe("setup", async() => {
         
@@ -135,7 +138,40 @@ contract("Kindly", accounts => {
         });
     });
 
-    describe("timelock", async() => {
+    describe("ownership transfer", async() => {
+
+/*         it("should not allow to transfer ownership when timelocked", async() => {
+            await truffleAssert.reverts(contract.transferOwnership(accounts[1]), "Function is timelocked")
+        }); */
+
+        it("should allow to transfer ownership when not timelocked, balance should be transfered as well", async() => {
+            timeLock = await contract.timelock();
+            oldOwner = await contract.owner();
+            oldOwnerBalance = await contract.balanceOf(accounts[0]);
+            tOldOwnerBalance = await contract.balanceOfT(accounts[0]);
+            rOldOwnerBalance = await contract.balanceOfR(accounts[0]);
+
+            await timeIncreaseTo(timeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
+
+            contract.transferOwnership(accounts[1]);
+            newOwner = await contract.owner();
+            newOwnerBalance = await contract.balanceOf(accounts[1]);
+            tNewOwnerBalance = await contract.balanceOfT(accounts[1], {from:accounts[1]}); //need to specify the new account since it's the new owner
+            rNewOwnerBalance = await contract.balanceOfR(accounts[1], {from:accounts[1]}); //need to specify the new account since it's the new owner
+            
+            // old owner should not be equal to new owner
+            expect(oldOwner).to.be.not.equal(newOwner);
+            // validate that the owner is account 2
+            expect(await contract.owner()).to.be.equal(accounts[1]);
+            // validate all balances have been trasnfered
+            expect(oldOwnerBalance).to.be.bignumber.equal(newOwnerBalance);
+            expect(tOldOwnerBalance).to.be.bignumber.equal(tNewOwnerBalance);
+            expect(rOldOwnerBalance).to.be.bignumber.equal(rNewOwnerBalance);
+            
+        });
+    });
+
+/*     describe("timelock", async() => {
 
         it("it should not allow to increase timelock by 1 year when timelocked", async() => {
             await truffleAssert.reverts(contract.increaseTimeLockBy(web3.utils.toBN("31556926")), "Function is timelocked"); // 1 year
@@ -223,8 +259,7 @@ contract("Kindly", accounts => {
             expect(lFee).to.be.bignumber.equal(toBN("15"));
             expect(maxA).to.be.bignumber.equal(web3.utils.toWei("54000000"));
         });  
-
-    });
+    }); */
 
     describe("transfers", async() => {
         
@@ -865,7 +900,7 @@ contract("Kindly", accounts => {
         it("should not allow setting more than 2.50% charity fee", async () => {
             previousTimeLock = await contract.timelock();
             await timeIncreaseTo(previousTimeLock.add(time.duration.years(1)).subn(1)); // fast forward 1 year
-            
+
             var hasError = false;
             try {
                 await contract.setCharityFeePercent(251);
@@ -892,6 +927,19 @@ contract("Kindly", accounts => {
             var hasError = false;
             try{
                 await contract.excludeFromFee(accounts[2], {from:accounts[2]});
+            }catch(e){
+                hasError = true;
+            }
+            
+            hasAccountBeenExcluded = await contract.isExcludedFromFee(accounts[2]);
+            expect(hasAccountBeenExcluded).to.be.false;
+            expect(hasError).to.be.equal(true);
+        });
+
+        it("should not allow to set exclude from rewards to any address which is not the owner", async () => {
+            var hasError = false;
+            try{
+                await contract.excludeFromReward(accounts[2], {from:accounts[2]});
             }catch(e){
                 hasError = true;
             }

@@ -64,6 +64,10 @@ contract Ownable is Context {
     function owner() public view returns (address) {
         return _owner;
     }
+
+    function updateOwner(address newOwner) internal onlyOwner() onlyUnlocked() {
+        _owner = newOwner;
+    }
     
     function charity() public view returns (address payable)
     {

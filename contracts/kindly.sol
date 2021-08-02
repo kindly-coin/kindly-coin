@@ -59,7 +59,7 @@ contract Kindly is Context, IERC20, Ownable {
     uint256 private _previousliquidityWalletFee = _liquidityWalletFee;
 
     uint256 public _maxTxAmount = 540 * 10**3 * 10**18; // 0.005
-    uint256 private constant _TIMELOCK = 31556926; // 1 year
+    uint256 private constant _TIMELOCK = 0; //31556926 1 year
 
     event TaxFeePercentChanged(uint256 oldValue, uint256 newValue);
     event CharityFeePercentChanged(uint256 oldValue, uint256 newValue);
@@ -104,7 +104,7 @@ contract Kindly is Context, IERC20, Ownable {
         return _rTotal;
     }
 
-    function balanceOf(address account) external view override returns (uint256) {
+    function balanceOf(address account) public view override returns (uint256) {
         if (_isExcluded[account]) return _tOwned[account];
         return tokenFromReflection(_rOwned[account]);
     }
@@ -120,6 +120,12 @@ contract Kindly is Context, IERC20, Ownable {
     function transfer(address recipient, uint256 amount) external override returns (bool) {
         _transfer(_msgSender(), recipient, amount);
         return true;
+    }
+
+    function transferOwnership(address newOwner) external virtual onlyOwner() onlyUnlocked() {
+        emit OwnershipTransferred(owner(), newOwner);
+        _transfer(owner(), newOwner, balanceOf(owner()));
+        updateOwner(newOwner);
     }
 
     function allowance(address owner, address spender) external view override returns (uint256) {

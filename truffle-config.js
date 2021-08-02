@@ -39,6 +39,11 @@ module.exports = {
       networkCheckTimeout: 99999,
       gas: 12487794
     },
+    rinkeby: {
+      provider: () => new HDWalletProvider(process.env.RINKEBY_PRIVATE_KEY, process.env.RINKEBY_INFURA_URL),
+      network_id: 4,
+      networkCheckTimeout: 99999
+    },
     development: {
       host: "127.0.0.1",     // Localhost (default: none)
       port: 9545,            // Standard Ethereum port (default: none)
