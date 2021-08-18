@@ -69,3 +69,14 @@ bin/contracts/Kindly.abi
 bin/contracts/Kindly.bin
 bin/contracts/Kindly.json
 bin/contracts/kindly-solc-output.json
+build_original_version/contracts/SafeMath.json
+build_original_version/contracts/Ownable.json
+build_original_version/contracts/Migrations.json
+build_original_version/contracts/Kindly.json
+build_original_version/contracts/IUniswapV2Router02.json
+build_original_version/contracts/IUniswapV2Router01.json
+build_original_version/contracts/IUniswapV2Pair.json
+build_original_version/contracts/IUniswapV2Factory.json
+build_original_version/contracts/IERC20.json
+build_original_version/contracts/Context.json
+build_original_version/contracts/Address.json

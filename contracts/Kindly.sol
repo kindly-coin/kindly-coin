@@ -41,8 +41,8 @@ contract Kindly is Context, IERC20, Ownable {
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
 
-    string private constant _name = "Kindly";
-    string private constant _symbol = "KINDLY";
+    string private constant _name = "Kindly Coin";
+    string private constant _symbol = "KIND";
     uint8 private constant _decimals = 18;
     
     // fees

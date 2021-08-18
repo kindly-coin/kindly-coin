@@ -33,6 +33,12 @@ module.exports = {
    */
 
   networks: {
+    mainnet: {
+      provider: () => new HDWalletProvider(process.env.MAINNET_PRIVATE_KEY, process.env.MAINNET_INFURA_URL),
+      network_id: 1,
+      gasPrice: 38000000000,
+      networkCheckTimeout: 99999
+    },
     kovan: {
       provider: () => new HDWalletProvider(process.env.KOVAN_PRIVATE_KEY, process.env.KOVAN_INFURA_URL),
       network_id: 42,
